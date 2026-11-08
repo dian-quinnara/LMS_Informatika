@@ -187,7 +187,7 @@ class LearningPlatformTest extends TestCase
             ], false)
             ->assertSee(route('materi.searching.quiz'), false)
             ->assertSee(route('materi.searching.hots-quiz'), false)
-            ->assertSee('href="'.route('dashboard', ['section' => 'simulations']).'"', false)
+            ->assertSee('href="'.route('materi.searching.simulator').'"', false)
             ->assertDontSee('Latihan LOTS')
             ->assertDontSee('Latihan HOTS')
             ->assertDontSee('Array terurut [3, 7, 11, 18, 25, 31, 42] dicari dengan Binary Search');

@@ -55,7 +55,7 @@
             <div class="token-entry-panel">
                 <span class="section-kicker">CATAT KEHADIRAN</span>
                 <h2>Masukkan token kelas</h2>
-                <p>Token hanya berlaku pada mata pelajaran dan rentang waktu yang ditentukan admin.</p>
+                <p>Token berlaku untuk sesi kelas atau mata pelajaran dalam rentang waktu yang ditetapkan admin.</p>
                 <form method="POST" action="{{ route('attendances.store') }}" class="token-entry-form">
                     @csrf
                     <label class="field-label" for="attendance-token">Token presensi</label>
@@ -70,7 +70,7 @@
                 <div class="section-heading"><div><span class="section-kicker">JADWAL TERSEDIA</span><h2>Sesi presensi</h2></div></div>
                 @forelse ($attendanceTokens as $attendanceToken)
                     <article class="session-row">
-                        <div><strong>{{ $attendanceToken->subject->name }}</strong><small>{{ $attendanceToken->starts_at->format('d M, H:i') }}–{{ $attendanceToken->expires_at->format('H:i') }}</small></div>
+                        <div><strong>{{ $attendanceToken->displayName() }}</strong><small>{{ $attendanceToken->starts_at->format('d M, H:i') }}–{{ $attendanceToken->expires_at->format('H:i') }}</small></div>
                         @if (in_array($attendanceToken->id, $attendedTokenIds))
                             <span class="status-badge">Sudah hadir</span>
                         @elseif ($attendanceToken->starts_at->isFuture())
@@ -87,7 +87,7 @@
         <section class="content-section">
             <div class="section-heading"><div><span class="section-kicker">RIWAYAT KEHADIRAN</span><h2>Presensi terakhir</h2></div></div>
             @forelse ($attendanceHistory as $attendance)
-                <article class="list-row"><div><strong>{{ $attendance->subject->name }}</strong><small>{{ $attendance->attended_on->format('d M Y') }}@if ($attendance->attendanceToken) · sesi {{ $attendance->attendanceToken->starts_at->format('H:i') }}@endif</small></div><span class="status-badge">Hadir</span></article>
+                <article class="list-row"><div><strong>{{ $attendance->attendanceToken?->displayName() ?? $attendance->subject?->name ?? 'Sesi presensi' }}</strong><small>{{ $attendance->attended_on->format('d M Y') }}@if ($attendance->attendanceToken) · sesi {{ $attendance->attendanceToken->starts_at->format('H:i') }}@endif</small></div><span class="status-badge">Hadir</span></article>
             @empty
                 <div class="empty-state"><strong>Riwayat presensi masih kosong.</strong><span>Presensi yang berhasil akan tercatat di sini.</span></div>
             @endforelse

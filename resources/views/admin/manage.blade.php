@@ -15,6 +15,17 @@
         </section>
     @endif
 
+    @if (session('attendance_session'))
+        <section class="token-reveal" role="status">
+            <div>
+                <span class="section-kicker">TOKEN PRESENSI KELAS BARU</span>
+                <p>Salin dan bagikan token ini kepada siswa kelas yang sesuai.</p>
+                <small>Berlaku sampai {{ session('attendance_session')['expires_at'] }}</small>
+            </div>
+            <code>{{ session('attendance_session')['token'] }}</code>
+        </section>
+    @endif
+
     <div class="management-grid">
         <section class="form-panel">
             <div class="panel-heading"><span class="panel-index">01</span><div><span class="section-kicker">STRUKTUR KELAS</span><h2>Mata pelajaran</h2></div></div>
@@ -101,6 +112,24 @@
                 <button class="button button-primary" type="submit" @disabled($subjects->isEmpty())>Buat dan tampilkan token</button>
             </form>
         </section>
+        <section class="form-panel">
+            <div class="panel-heading"><span class="panel-index panel-index-blue">06</span><div><span class="section-kicker">KEHADIRAN KELAS</span><h2>Buat sesi berdasarkan kelas</h2></div></div>
+            <form method="POST" action="{{ route('admin.attendance-sessions.store') }}" class="form-stack">
+                @csrf
+                <label class="field-label" for="session-class">Nama kelas</label>
+                <select id="session-class" name="class_name" required>
+                    <option value="">Pilih kelas</option>
+                    @foreach (config('attendance.classes', []) as $className)
+                        <option value="{{ $className }}" @selected(old('class_name') === $className)>{{ $className }}</option>
+                    @endforeach
+                </select>
+                <label class="field-label" for="session-starts-at">Mulai · {{ config('app.timezone') }}</label>
+                <input id="session-starts-at" name="starts_at" type="datetime-local" value="{{ old('starts_at', now()->addMinutes(5)->format('Y-m-d\TH:i')) }}" required>
+                <label class="field-label" for="session-expires-at">Berakhir · {{ config('app.timezone') }}</label>
+                <input id="session-expires-at" name="expires_at" type="datetime-local" value="{{ old('expires_at', now()->addHour()->format('Y-m-d\TH:i')) }}" required>
+                <button class="button button-primary" type="submit" @disabled(empty(config('attendance.classes', [])))>Buat dan tampilkan token kelas</button>
+            </form>
+        </section>
     </div>
 
     <section class="content-section manage-lists">
@@ -116,7 +145,7 @@
         <div class="section-heading"><div><span class="section-kicker">SESI TERJADWAL</span><h2>Token presensi</h2></div></div>
         @forelse ($attendanceTokens as $attendanceToken)
             <article class="session-row">
-                <div><strong>{{ $attendanceToken->subject->name }}</strong><small>{{ $attendanceToken->starts_at->format('d M Y, H:i') }}–{{ $attendanceToken->expires_at->format('H:i') }} · token disimpan aman</small></div>
+                <div><strong>{{ $attendanceToken->displayName() }}</strong><small>{{ $attendanceToken->starts_at->format('d M Y, H:i') }}–{{ $attendanceToken->expires_at->format('H:i') }} · token disimpan aman</small></div>
                 @if ($attendanceToken->expires_at->isPast())
                     <span class="draft-badge">Berakhir</span>
                 @elseif ($attendanceToken->starts_at->isFuture())

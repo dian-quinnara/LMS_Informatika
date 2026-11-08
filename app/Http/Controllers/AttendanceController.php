@@ -36,7 +36,7 @@ class AttendanceController extends Controller
         );
 
         $message = $attendance->wasRecentlyCreated
-            ? 'Presensi '.$attendanceToken->subject->name.' berhasil dicatat.'
+            ? 'Presensi '.$attendanceToken->displayName().' berhasil dicatat.'
             : 'Presensi untuk sesi ini sudah pernah dicatat.';
 
         return back()->with('status', $message);
