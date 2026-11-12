@@ -30,6 +30,9 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/questions', [LearningManagementController::class, 'storeQuestion'])->name('questions.store');
         Route::post('/attendance-tokens', [AttendanceTokenController::class, 'store'])->name('attendance-tokens.store');
         Route::post('/attendance-sessions', [AttendanceTokenController::class, 'storeSession'])->name('attendance-sessions.store');
+        Route::get('/attendance-sessions/{attendanceSession}', [AttendanceTokenController::class, 'show'])->whereNumber('attendanceSession')->name('attendance-sessions.show');
+        Route::get('/attendance-report', [AttendanceTokenController::class, 'report'])->name('attendance-report');
+        Route::patch('/student-classes', [AttendanceTokenController::class, 'assignClass'])->name('student-classes.update');
     });
 
     Route::middleware('role:student')->group(function (): void {

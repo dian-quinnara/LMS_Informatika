@@ -17,10 +17,13 @@
             <section class="token-reveal" role="status">
                 <div>
                     <span class="section-kicker">TOKEN PRESENSI BARU</span>
-                    <p>Kelas {{ $newSession['class_name'] }} · {{ $newSession['starts_at'] }}–{{ $newSession['expires_at'] }}</p>
-                    <small>Status sesi: {{ $newSession['status'] }}</small>
+                    <p>Kelas {{ $newSession['class_name'] }}@if (! empty($newSession['title'])) · {{ $newSession['title'] }}@endif · {{ $newSession['starts_at'] }} – {{ $newSession['expires_at'] }}</p>
+                    <small>Status sesi: {{ $newSession['status'] }}@if (! empty($newSession['id'])) · <a class="text-link" href="{{ route('admin.attendance-sessions.show', $newSession['id']) }}">Lihat detail sesi</a>@endif</small>
                 </div>
-                <code>{{ $newSession['token'] }}</code>
+                <div class="button-group">
+                    <code>{{ $newSession['token'] }}</code>
+                    <button class="button button-quiet" type="button" data-copy-token="{{ $newSession['token'] }}">Salin token</button>
+                </div>
             </section>
         @endif
         <section class="stat-grid" aria-label="Ringkasan data">
@@ -29,6 +32,7 @@
             <article class="stat-tile stat-coral"><span>MATERI BELAJAR</span><strong>{{ $stats['materials'] }}</strong><small>sumber belajar diterbitkan</small></article>
             <article class="stat-tile stat-blue"><span>SIMULASI</span><strong>{{ $stats['simulations'] }}</strong><small>latihan tersimpan</small></article>
         </section>
+        @include('admin.partials.class-attendance')
         <section class="content-section">
             <div class="section-heading"><div><span class="section-kicker">RUANG KELAS</span><h2>Mata pelajaran</h2></div><a class="text-link" href="{{ route('admin.manage') }}">Atur konten <span aria-hidden="true">&#8594;</span></a></div>
             @forelse ($subjects as $subject)
@@ -63,14 +67,14 @@
                         <input id="attendance-token" name="token" type="text" value="{{ old('token') }}" minlength="10" maxlength="10" pattern="[A-Za-z0-9]{10}" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CONTOH1234" required>
                         <button class="button button-primary" type="submit">Kirim presensi <span aria-hidden="true">&#8594;</span></button>
                     </div>
-                    <small>10 karakter · waktu aplikasi {{ config('app.timezone') }}</small>
+                    <small>{{ $user->class_name ? 'Kelas '.$user->class_name.' · ' : '' }}10 karakter · waktu aplikasi {{ config('app.timezone') }}</small>
                 </form>
             </div>
             <div class="attendance-sessions">
                 <div class="section-heading"><div><span class="section-kicker">JADWAL TERSEDIA</span><h2>Sesi presensi</h2></div></div>
                 @forelse ($attendanceTokens as $attendanceToken)
                     <article class="session-row">
-                        <div><strong>{{ $attendanceToken->subject->name }}</strong><small>{{ $attendanceToken->starts_at->format('d M, H:i') }}–{{ $attendanceToken->expires_at->format('H:i') }}</small></div>
+                        <div><strong>{{ $attendanceToken->displayName() }}</strong><small>{{ $attendanceToken->starts_at->format('d M, H:i') }}–{{ $attendanceToken->expires_at->format('H:i') }}</small></div>
                         @if (in_array($attendanceToken->id, $attendedTokenIds))
                             <span class="status-badge">Sudah hadir</span>
                         @elseif ($attendanceToken->starts_at->isFuture())
@@ -87,7 +91,7 @@
         <section class="content-section">
             <div class="section-heading"><div><span class="section-kicker">RIWAYAT KEHADIRAN</span><h2>Presensi terakhir</h2></div></div>
             @forelse ($attendanceHistory as $attendance)
-                <article class="list-row"><div><strong>{{ $attendance->subject->name }}</strong><small>{{ $attendance->attended_on->format('d M Y') }}@if ($attendance->attendanceToken) · sesi {{ $attendance->attendanceToken->starts_at->format('H:i') }}@endif</small></div><span class="status-badge">Hadir</span></article>
+                <article class="list-row"><div><strong>{{ $attendance->attendanceToken?->displayName() ?? $attendance->subject?->name ?? 'Sesi presensi' }}</strong><small>{{ $attendance->attended_on->format('d M Y') }}@if ($attendance->attendanceToken) · sesi {{ $attendance->attendanceToken->starts_at->format('H:i') }}@endif</small></div><span class="status-badge">Hadir</span></article>
             @empty
                 <div class="empty-state"><strong>Riwayat presensi masih kosong.</strong><span>Presensi yang berhasil akan tercatat di sini.</span></div>
             @endforelse
