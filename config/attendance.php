@@ -41,4 +41,16 @@ return [
         'XII F9',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Kelas X (Presensi Kelola Kelas)
+    |--------------------------------------------------------------------------
+    |
+    | Kelas yang dipakai fitur sesi presensi, roster siswa, dan laporan
+    | presensi pada halaman Kelola Kelas admin.
+    |
+    */
+
+    'grade_x_classes' => ['XE1', 'XE2', 'XE3', 'XE4', 'XE5', 'XE6', 'XE7', 'XE8', 'XE9'],
+
 ];

@@ -21,8 +21,8 @@
             <p class="nav-label">MENU UTAMA</p>
             <nav class="primary-nav" aria-label="Navigasi utama">
                 @if (auth()->user()->role === 'admin')
-                    <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}"><span class="nav-symbol">01</span> Kelola Kelas</a>
-                    <a class="nav-link {{ request()->routeIs('admin.*') ? 'active' : '' }}" href="{{ route('admin.manage') }}"><span class="nav-symbol">02</span> Kelola Pembelajaran</a>
+                    <a class="nav-link {{ request()->routeIs('dashboard', 'admin.attendance-sessions.*', 'admin.attendance-report') ? 'active' : '' }}" href="{{ route('dashboard') }}"><span class="nav-symbol">01</span> Kelola Kelas</a>
+                    <a class="nav-link {{ request()->routeIs('admin.*') && ! request()->routeIs('admin.attendance-sessions.*', 'admin.attendance-report') ? 'active' : '' }}" href="{{ route('admin.manage') }}"><span class="nav-symbol">02</span> Kelola Pembelajaran</a>
                 @else
                     <a class="nav-link {{ request()->routeIs('dashboard') && request('section', 'attendance') === 'attendance' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'attendance']) }}"><span class="nav-symbol">01</span> Presensi siswa</a>
                     <a class="nav-link {{ request()->routeIs('dashboard') && request('section') === 'materials' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'materials']) }}"><span class="nav-symbol">02</span> Materi belajar Informatika</a>
