@@ -6,9 +6,11 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LearningManagementController;
 use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\SearchingAnalysisController;
 use App\Http\Controllers\SearchingQuizController;
 use App\Http\Controllers\SimulationAttemptController;
+use App\Http\Controllers\StudentImportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function (): void {
@@ -21,6 +23,8 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware('auth')->group(function (): void {
     Route::get('/', DashboardController::class)->name('dashboard');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/password/change', [PasswordController::class, 'edit'])->name('password.edit');
+    Route::put('/password', [PasswordController::class, 'update'])->middleware('throttle:10,1')->name('password.update');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/manage', [LearningManagementController::class, 'index'])->name('manage');
@@ -33,6 +37,13 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/attendance-sessions/{attendanceSession}', [AttendanceTokenController::class, 'show'])->whereNumber('attendanceSession')->name('attendance-sessions.show');
         Route::get('/attendance-report', [AttendanceTokenController::class, 'report'])->name('attendance-report');
         Route::patch('/student-classes', [AttendanceTokenController::class, 'assignClass'])->name('student-classes.update');
+        Route::get('/students/import', [StudentImportController::class, 'index'])->name('students.import');
+        Route::get('/students/import/template/{format}', [StudentImportController::class, 'template'])->whereIn('format', ['xlsx', 'csv'])->name('students.import.template');
+        Route::get('/students/import/example', [StudentImportController::class, 'example'])->name('students.import.example');
+        Route::get('/students/import/errors', [StudentImportController::class, 'downloadErrors'])->name('students.import.errors');
+        Route::post('/students/import/preview', [StudentImportController::class, 'preview'])->middleware('throttle:20,1')->name('students.import.preview');
+        Route::post('/students/import', [StudentImportController::class, 'store'])->name('students.import.store');
+        Route::delete('/students/import', [StudentImportController::class, 'destroy'])->name('students.import.destroy');
     });
 
     Route::middleware('role:student')->group(function (): void {

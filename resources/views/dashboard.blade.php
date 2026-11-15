@@ -53,8 +53,18 @@
                     <h1>Simulasi</h1><p>Latihan yang tersedia untuk menguji pemahamanmu.</p>
                 @endif
             </div>
+            <div class="info-stat" aria-label="Identitas siswa">
+                <span class="info-label">{{ $user->name }}{{ $user->nis ? ' · NIS '.$user->nis : '' }}</span>
+                <strong>{{ $user->class_name ? 'Kelas '.$user->class_name : 'Kelas belum diatur' }}</strong>
+            </div>
         </section>
         @if ($studentSection === 'attendance')
+        @if ($user->class_name === null)
+            <div class="warning-message" role="alert">
+                <strong>Kelasmu belum diatur.</strong>
+                <p>Hubungi admin agar akunmu dimasukkan ke kelas XE1–XE9 sebelum melakukan presensi. Kelas tidak dapat dipilih sendiri oleh siswa.</p>
+            </div>
+        @endif
         <section class="attendance-entry">
             <div class="token-entry-panel">
                 <span class="section-kicker">CATAT KEHADIRAN</span>
@@ -74,7 +84,7 @@
                 <div class="section-heading"><div><span class="section-kicker">JADWAL TERSEDIA</span><h2>Sesi presensi</h2></div></div>
                 @forelse ($attendanceTokens as $attendanceToken)
                     <article class="session-row">
-                        <div><strong>{{ $attendanceToken->displayName() }}</strong><small>{{ $attendanceToken->starts_at->format('d M, H:i') }}–{{ $attendanceToken->expires_at->format('H:i') }}</small></div>
+                        <div><strong>{{ $attendanceToken->displayName() }}</strong><small>{{ $attendanceToken->starts_at->format('d M Y, H:i') }}–{{ $attendanceToken->expires_at->format('d M Y, H:i') }}</small></div>
                         @if (in_array($attendanceToken->id, $attendedTokenIds))
                             <span class="status-badge">Sudah hadir</span>
                         @elseif ($attendanceToken->starts_at->isFuture())

@@ -47,6 +47,7 @@
                 </select>
                 <small class="optional">Siswa hanya dapat presensi pada sesi kelasnya sendiri. {{ $classStudents->whereNull('class_name')->count() }} siswa belum memiliki kelas.</small>
                 <button class="button button-primary" type="submit" @disabled($classStudents->isEmpty())>Simpan kelas siswa</button>
+                <a class="text-link" href="{{ route('admin.students.import') }}">Impor data siswa dari Excel/CSV <span aria-hidden="true">&#8594;</span></a>
             </form>
         </section>
     </div>
