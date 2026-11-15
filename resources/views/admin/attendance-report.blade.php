@@ -27,6 +27,25 @@
                 <label class="field-label" for="report-date-to">Sampai tanggal <span class="optional">OPSIONAL</span></label>
                 <input id="report-date-to" name="date_to" type="date" value="{{ $dateTo->format('Y-m-d') }}">
             </div>
+            <div>
+                <label class="field-label" for="report-session">Sesi</label>
+                <select id="report-session" name="session_id" @disabled($className === null)>
+                    <option value="">Semua sesi</option>
+                    @foreach ($availableSessions as $availableSession)
+                        <option value="{{ $availableSession->id }}" @selected($selectedSessionId === $availableSession->id)>
+                            {{ $availableSession->title ?: 'Sesi '.$availableSession->class_name }} · {{ $availableSession->starts_at->format('d/m/Y H:i') }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="field-label" for="report-status">Status kehadiran</label>
+                <select id="report-status" name="attendance_status">
+                    <option value="">Semua status</option>
+                    <option value="present" @selected($attendanceStatus === 'present')>Hadir</option>
+                    <option value="absent" @selected($attendanceStatus === 'absent')>Belum presensi</option>
+                </select>
+            </div>
         </div>
         <button class="button button-primary" type="submit">Tampilkan laporan</button>
     </form>
@@ -61,16 +80,20 @@
                     <a class="text-link" href="{{ route('admin.attendance-sessions.show', $session) }}">{{ $session->attendances->count() }}/{{ $roster->count() }} hadir · {{ $session->sessionStatus() }} <span aria-hidden="true">&#8594;</span></a>
                 </div>
                 @foreach ($session->attendances as $attendance)
+                    @if ($attendanceStatus !== 'absent')
                     <article class="session-row">
                         <div><strong>{{ $attendance->user->name }}</strong><small>{{ $attendance->user->email }}</small></div>
                         <span class="status-badge">Hadir · {{ $attendance->created_at->format('H:i:s') }}</span>
                     </article>
+                    @endif
                 @endforeach
                 @foreach ($session->absent_students as $student)
+                    @if ($attendanceStatus !== 'present')
                     <article class="session-row">
                         <div><strong>{{ $student->name }}</strong><small>{{ $student->email }}</small></div>
                         <span class="draft-badge">Belum presensi</span>
                     </article>
+                    @endif
                 @endforeach
                 @if ($session->attendances->isEmpty() && $session->absent_students->isEmpty())
                     <div class="empty-state"><strong>Tidak ada data siswa untuk sesi ini.</strong><span>Roster kelas {{ $className }} masih kosong.</span></div>

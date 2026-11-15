@@ -192,14 +192,31 @@ class GradeXAttendanceTest extends TestCase
     {
         [, $tokenXe1] = $this->createSession('XE1', now()->subMinute(), now()->addHour(), 'Sesi Kelas Satu');
         [, $tokenXe2] = $this->createSession('XE2', now()->subMinute(), now()->addHour(), 'Sesi Kelas Dua');
+        [, $tokenXe9] = $this->createSession('XE9', now()->subMinute(), now()->addHour(), 'Sesi Kelas Sembilan');
 
         $this->actingAs($this->student('XE1'))
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Sesi Kelas Satu')
             ->assertDontSee('Sesi Kelas Dua')
+            ->assertDontSee('Sesi Kelas Sembilan')
             ->assertDontSee($tokenXe1)
-            ->assertDontSee($tokenXe2);
+            ->assertDontSee($tokenXe2)
+            ->assertDontSee($tokenXe9);
+
+        $this->actingAs($this->student('XE2'))
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Sesi Kelas Dua')
+            ->assertDontSee('Sesi Kelas Satu')
+            ->assertDontSee('Sesi Kelas Sembilan');
+
+        $this->actingAs($this->student('XE9'))
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Sesi Kelas Sembilan')
+            ->assertDontSee('Sesi Kelas Satu')
+            ->assertDontSee('Sesi Kelas Dua');
     }
 
     public function test_only_admin_can_manage_sessions_reports_and_rosters(): void
@@ -291,6 +308,46 @@ class GradeXAttendanceTest extends TestCase
 
         $this->get(route('admin.attendance-sessions.show', $session))
             ->assertOk()->assertSee('Ani Hadir')->assertSee('Budi Absen')->assertSee('1/2 siswa hadir');
+    }
+
+    public function test_report_filters_by_session_and_attendance_status(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-12 07:00'));
+        [$firstSession, $token] = $this->createSession('XE1', now(), now()->addHour(), 'Sesi Pagi');
+        $this->createSession('XE1', now()->addHours(2), now()->addHours(3), 'Sesi Siang');
+        $this->createSession('XE2', now(), now()->addHour(), 'Sesi Kelas Lain');
+        $present = $this->student('XE1', ['name' => 'Siswa Hadir']);
+        $this->student('XE1', ['name' => 'Siswa Belum Hadir']);
+
+        $this->travelTo(Carbon::parse('2026-11-12 07:15'));
+        $this->actingAs($present)
+            ->post(route('attendances.store'), ['token' => $token])
+            ->assertSessionHasNoErrors();
+
+        $filters = [
+            'class_name' => 'XE1',
+            'date_from' => '2026-11-12',
+            'date_to' => '2026-11-12',
+            'session_id' => $firstSession->id,
+        ];
+        $this->actingAs($this->admin())
+            ->get(route('admin.attendance-report', [...$filters, 'attendance_status' => 'present']))
+            ->assertOk()
+            ->assertSee('Siswa Hadir')
+            ->assertDontSee('Siswa Belum Hadir')
+            ->assertDontSee('<h2>Sesi Siang</h2>', false)
+            ->assertDontSee('<h2>Sesi Kelas Lain</h2>', false);
+
+        $this->get(route('admin.attendance-report', [...$filters, 'attendance_status' => 'absent']))
+            ->assertOk()
+            ->assertSee('Siswa Belum Hadir')
+            ->assertDontSee('Siswa Hadir')
+            ->assertDontSee('<h2>Sesi Siang</h2>', false);
+
+        $otherClassSession = AttendanceToken::query()->where('class_name', 'XE2')->firstOrFail();
+        $this->get(route('admin.attendance-report', [...$filters, 'session_id' => $otherClassSession->id]))
+            ->assertRedirect()
+            ->assertSessionHasErrors('session_id');
     }
 
     public function test_subject_based_session_is_not_shown_as_grade_x_detail(): void

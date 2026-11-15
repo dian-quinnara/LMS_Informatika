@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AttendanceTokenController extends Controller
@@ -135,25 +136,50 @@ class AttendanceTokenController extends Controller
             'class_name' => ['nullable', 'string', Rule::in($classes)],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'session_id' => ['nullable', 'integer'],
+            'attendance_status' => ['nullable', Rule::in(['present', 'absent'])],
         ], [
             'class_name.in' => 'Kelas harus salah satu dari XE1–XE9.',
             'date_from.date' => 'Tanggal awal tidak valid.',
             'date_to.date' => 'Tanggal akhir tidak valid.',
             'date_to.after_or_equal' => 'Tanggal akhir tidak boleh sebelum tanggal awal.',
+            'session_id.integer' => 'Sesi presensi tidak valid.',
+            'attendance_status.in' => 'Status presensi tidak valid.',
         ]);
 
         $className = $validated['class_name'] ?? null;
         $dateFrom = Carbon::parse($validated['date_from'] ?? today())->startOfDay();
         $dateTo = Carbon::parse($validated['date_to'] ?? $dateFrom)->endOfDay();
+        $selectedSessionId = isset($validated['session_id']) ? (int) $validated['session_id'] : null;
+        $attendanceStatus = $validated['attendance_status'] ?? null;
+        $availableSessions = collect();
         $sessions = collect();
         $roster = collect();
         $studentSummary = collect();
 
+        if ($selectedSessionId !== null && $className === null) {
+            throw ValidationException::withMessages([
+                'session_id' => 'Pilih kelas sebelum memilih sesi presensi.',
+            ]);
+        }
+
         if ($className !== null) {
             $roster = $this->rosterFor($className);
-            $sessions = AttendanceToken::query()
+            $sessionQuery = AttendanceToken::query()
                 ->where('class_name', $className)
-                ->whereBetween('starts_at', [$dateFrom, $dateTo])
+                ->whereBetween('starts_at', [$dateFrom, $dateTo]);
+            $availableSessions = (clone $sessionQuery)
+                ->orderBy('starts_at')
+                ->get(['id', 'class_name', 'title', 'starts_at', 'expires_at']);
+
+            if ($selectedSessionId !== null && ! $availableSessions->contains('id', $selectedSessionId)) {
+                throw ValidationException::withMessages([
+                    'session_id' => 'Sesi tersebut tidak tersedia untuk kelas dan rentang tanggal yang dipilih.',
+                ]);
+            }
+
+            $sessions = $sessionQuery
+                ->when($selectedSessionId !== null, fn ($query) => $query->whereKey($selectedSessionId))
                 ->with([
                     'attendances' => fn ($query) => $query->orderBy('created_at'),
                     'attendances.user:id,name,email,class_name',
@@ -173,7 +199,13 @@ class AttendanceTokenController extends Controller
                 'attended' => $sessions
                     ->filter(fn (AttendanceToken $session): bool => $session->attendances->contains('user_id', $student->id))
                     ->count(),
-            ]);
+            ])->filter(function (array $row) use ($attendanceStatus, $sessions): bool {
+                return match ($attendanceStatus) {
+                    'present' => $row['attended'] > 0,
+                    'absent' => $sessions->isNotEmpty() && $row['attended'] < $sessions->count(),
+                    default => true,
+                };
+            })->values();
         }
 
         return view('admin.attendance-report', [
@@ -181,6 +213,9 @@ class AttendanceTokenController extends Controller
             'className' => $className,
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
+            'availableSessions' => $availableSessions,
+            'selectedSessionId' => $selectedSessionId,
+            'attendanceStatus' => $attendanceStatus,
             'sessions' => $sessions,
             'roster' => $roster,
             'studentSummary' => $studentSummary,

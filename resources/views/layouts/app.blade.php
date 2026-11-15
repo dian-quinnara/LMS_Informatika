@@ -21,8 +21,8 @@
             <p class="nav-label">MENU UTAMA</p>
             <nav class="primary-nav" aria-label="Navigasi utama">
                 @if (auth()->user()->role === 'admin')
-                    <a class="nav-link {{ request()->routeIs('dashboard', 'admin.attendance-sessions.*', 'admin.attendance-report') ? 'active' : '' }}" href="{{ route('dashboard') }}"><span class="nav-symbol">01</span> Kelola Kelas</a>
-                    <a class="nav-link {{ request()->routeIs('admin.*') && ! request()->routeIs('admin.attendance-sessions.*', 'admin.attendance-report') ? 'active' : '' }}" href="{{ route('admin.manage') }}"><span class="nav-symbol">02</span> Kelola Pembelajaran</a>
+                    <a class="nav-link {{ request()->routeIs('dashboard', 'admin.attendance-sessions.*', 'admin.attendance-report', 'admin.students.*') ? 'active' : '' }}" href="{{ route('dashboard') }}"><span class="nav-symbol">01</span> Kelola Kelas</a>
+                    <a class="nav-link {{ request()->routeIs('admin.*') && ! request()->routeIs('admin.attendance-sessions.*', 'admin.attendance-report', 'admin.students.*') ? 'active' : '' }}" href="{{ route('admin.manage') }}"><span class="nav-symbol">02</span> Kelola Pembelajaran</a>
                 @else
                     <a class="nav-link {{ request()->routeIs('dashboard') && request('section', 'attendance') === 'attendance' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'attendance']) }}"><span class="nav-symbol">01</span> Presensi siswa</a>
                     <a class="nav-link {{ request()->routeIs('dashboard') && request('section') === 'materials' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'materials']) }}"><span class="nav-symbol">02</span> Materi belajar Informatika</a>
@@ -31,7 +31,7 @@
             <div class="sidebar-bottom">
                 <div class="profile-chip">
                     <span class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
-                    <span class="profile-copy"><strong>{{ auth()->user()->name }}</strong><small>{{ auth()->user()->role === 'admin' ? 'Administrator' : 'Siswa' }}</small></span>
+                    <span class="profile-copy"><strong>{{ auth()->user()->name }}</strong><small>{{ auth()->user()->role === 'admin' ? 'Administrator' : 'Siswa'.(auth()->user()->class_name ? ' · '.auth()->user()->class_name : '') }}</small></span>
                 </div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
