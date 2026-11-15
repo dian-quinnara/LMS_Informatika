@@ -14,7 +14,7 @@ use RuntimeException;
  *
  * Aturan: data lama tidak pernah dihapus. Baris dengan email siswa yang sudah ada
  * hanya memperbarui kelas (dan NIS bila belum ada); selain itu dibuat akun baru
- * dengan kata sandi awal acak yang wajib diganti saat login pertama.
+ * dengan kata sandi awal sama dengan NIS yang wajib diganti saat login pertama.
  */
 class StudentImporter
 {
@@ -196,7 +196,8 @@ class StudentImporter
                     continue;
                 }
 
-                $password = $this->initialPassword();
+                // Kata sandi awal = NIS (permintaan sekolah); wajib diganti saat login pertama.
+                $password = $row['nis'];
                 $student = new User;
                 $student->forceFill([
                     'name' => $row['name'],

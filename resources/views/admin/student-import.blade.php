@@ -33,7 +33,7 @@
                 @csrf
                 <label class="field-label" for="student-file">File data siswa (.xlsx atau .csv, maks. 2 MB)</label>
                 <input id="student-file" name="file" type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-                <small class="optional">File diperiksa dulu. Belum ada data yang disimpan sebelum Anda menekan "Simpan".</small>
+                <small class="optional">File diperiksa dulu. Belum ada data yang disimpan sebelum Anda menekan "Simpan". Akun baru memakai kata sandi awal = NIS dan wajib diganti saat login pertama.</small>
                 <button class="button button-primary" type="submit">Periksa dan tampilkan pratinjau</button>
             </form>
         </section>
@@ -49,6 +49,11 @@
                     @foreach ($classes as $class)
                         <option value="{{ $class }}" @selected(old('class_name') === $class) @disabled(($resettableCounts[$class] ?? 0) === 0)>{{ $class }} · {{ $resettableCounts[$class] ?? 0 }} siswa</option>
                     @endforeach
+                </select>
+                <label class="field-label" for="reset-mode">Jenis kata sandi awal</label>
+                <select id="reset-mode" name="mode">
+                    <option value="random" @selected(old('mode', 'random') === 'random')>Acak 10 karakter (lebih aman)</option>
+                    <option value="nis" @selected(old('mode') === 'nis')>Sama dengan NIS siswa</option>
                 </select>
                 <label class="check-line"><input type="checkbox" name="confirm" value="1" required> Kata sandi awal lama tidak berlaku lagi setelah dibuat ulang.</label>
                 <button class="button button-primary" type="submit" @disabled($resettableCounts->sum() === 0)>Buat ulang kata sandi awal</button>

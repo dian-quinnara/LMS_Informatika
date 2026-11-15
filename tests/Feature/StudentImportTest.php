@@ -128,7 +128,7 @@ class StudentImportTest extends TestCase
             $this->assertTrue($student->must_change_password);
             $this->assertNotSame($created['password'], $student->password);
             $this->assertTrue(Hash::check($created['password'], $student->password));
-            $this->assertMatchesRegularExpression('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9]{10}$/', $created['password']);
+            $this->assertSame($nis, $created['password']);
         }
 
         $this->get(route('admin.students.import'))->assertOk()->assertSee('Unduh kredensial');

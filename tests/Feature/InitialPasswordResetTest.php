@@ -79,6 +79,31 @@ class InitialPasswordResetTest extends TestCase
         $this->assertFalse(Hash::check('SandiLama123', $xe1->fresh()->password));
     }
 
+    public function test_reset_can_use_nis_as_initial_password(): void
+    {
+        $withNis = $this->student('XE1', true);
+        $withoutNis = User::factory()->create(['role' => 'student', 'class_name' => 'XE1', 'nis' => null, 'password' => 'SandiLama123', 'must_change_password' => true]);
+        $changed = $this->student('XE1', false, 'MilikSiswa123');
+        $this->actingAs($this->admin());
+
+        $this->post(route('admin.students.initial-passwords.reset'), ['mode' => 'nis', 'confirm' => '1'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([$withNis->email], array_column(session('password_reset_result')['rows'], 'email'));
+        $this->assertSame($withNis->nis, session('password_reset_result')['rows'][0]['password']);
+        $this->assertTrue(Hash::check($withNis->nis, $withNis->fresh()->password));
+        $this->assertTrue($withNis->fresh()->must_change_password);
+        $this->assertTrue(Hash::check('SandiLama123', $withoutNis->fresh()->password));
+        $this->assertTrue(Hash::check('MilikSiswa123', $changed->fresh()->password));
+
+        $this->post(route('admin.students.initial-passwords.reset'), ['mode' => 'teks', 'confirm' => '1'])->assertSessionHasErrors('mode');
+
+        $this->post('/logout');
+        $this->flushSession();
+        $this->post('/login', ['email' => $withNis->email, 'password' => $withNis->nis])->assertRedirect(route('dashboard'));
+        $this->get(route('dashboard'))->assertRedirect(route('password.edit'));
+    }
+
     public function test_reset_is_validated(): void
     {
         $student = $this->student('XE1', true);
