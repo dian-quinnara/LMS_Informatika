@@ -37,7 +37,47 @@
                 <button class="button button-primary" type="submit">Periksa dan tampilkan pratinjau</button>
             </form>
         </section>
+
+        <section class="form-panel" id="kata-sandi-awal">
+            <div class="panel-heading"><span class="panel-index panel-index-coral">03</span><div><span class="section-kicker">KATA SANDI AWAL</span><h2>Buat ulang kata sandi awal</h2></div></div>
+            <form method="POST" action="{{ route('admin.students.initial-passwords.reset') }}" class="form-stack" data-single-submit>
+                @csrf
+                <small class="optional">Untuk siswa yang belum pernah login dan mengganti kata sandi, misalnya bila file kredensial hilang. Siswa yang sudah memakai kata sandi sendiri tidak terpengaruh.</small>
+                <label class="field-label" for="reset-class">Kelas</label>
+                <select id="reset-class" name="class_name">
+                    <option value="">Semua kelas · {{ $resettableCounts->sum() }} siswa</option>
+                    @foreach ($classes as $class)
+                        <option value="{{ $class }}" @selected(old('class_name') === $class) @disabled(($resettableCounts[$class] ?? 0) === 0)>{{ $class }} · {{ $resettableCounts[$class] ?? 0 }} siswa</option>
+                    @endforeach
+                </select>
+                <label class="check-line"><input type="checkbox" name="confirm" value="1" required> Kata sandi awal lama tidak berlaku lagi setelah dibuat ulang.</label>
+                <button class="button button-primary" type="submit" @disabled($resettableCounts->sum() === 0)>Buat ulang kata sandi awal</button>
+            </form>
+        </section>
     </div>
+
+    @if ($passwordReset)
+        <section class="content-section">
+            <div class="section-heading">
+                <div><span class="section-kicker">KATA SANDI AWAL BARU{{ $passwordReset['class_name'] ? ' · KELAS '.$passwordReset['class_name'] : '' }}</span><h2>Kredensial siswa</h2></div>
+                <span class="section-count">{{ count($passwordReset['rows']) }} SISWA</span>
+            </div>
+            <section class="token-reveal" role="status">
+                <div>
+                    <span class="section-kicker">KATA SANDI AWAL</span>
+                    <p>Kata sandi hanya ditampilkan sekali. Unduh atau catat sekarang, lalu bagikan ke masing-masing siswa.</p>
+                    <small>Siswa wajib mengganti kata sandi saat login pertama.</small>
+                </div>
+                <a class="button button-quiet" href="data:text/csv;charset=utf-8;base64,{{ $passwordReset['credentials_csv'] }}" download="kredensial-siswa.csv">Unduh kredensial (.csv)</a>
+            </section>
+            @foreach ($passwordReset['rows'] as $row)
+                <article class="session-row">
+                    <div><strong>{{ $row['name'] }} · {{ $row['class_name'] ?: 'tanpa kelas' }}</strong><small>NIS {{ $row['nis'] ?: '–' }} · {{ $row['email'] }} · kata sandi awal <code>{{ $row['password'] }}</code></small></div>
+                    <span class="status-badge">Dibuat ulang</span>
+                </article>
+            @endforeach
+        </section>
+    @endif
 
     @if ($preview !== null)
         @php

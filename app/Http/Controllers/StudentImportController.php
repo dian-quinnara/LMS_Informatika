@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Services\StudentImporter;
 use App\Support\SimpleXlsx;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,6 +19,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class StudentImportController extends Controller
 {
     private const SESSION_KEY = 'student_import';
+
+    /** Baris gagal impor terakhir (tanpa kata sandi), bertahan sampai impor berikutnya agar bisa diunduh. */
+    private const FAILED_ROWS_KEY = 'student_import_failed_rows';
 
     public function __construct(private readonly StudentImporter $importer) {}
 
@@ -34,7 +40,83 @@ class StudentImportController extends Controller
             'result' => $request->session()->get('student_import_result'),
             'studentCount' => User::query()->where('role', 'student')->count(),
             'unassignedCount' => User::query()->where('role', 'student')->whereNull('class_name')->count(),
+            'resettableCounts' => $this->resettableStudents()
+                ->selectRaw('class_name, count(*) as total')
+                ->groupBy('class_name')
+                ->pluck('total', 'class_name'),
+            'passwordReset' => $request->session()->get('password_reset_result'),
         ]);
+    }
+
+    /**
+     * Buat ulang kata sandi awal untuk siswa yang belum pernah mengganti kata sandi.
+     * Siswa yang sudah memakai kata sandi sendiri tidak tersentuh.
+     */
+    public function resetPasswords(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'class_name' => ['nullable', 'string', Rule::in(config('attendance.grade_x_classes', []))],
+            'confirm' => ['accepted'],
+        ], [
+            'class_name.in' => 'Kelas harus salah satu dari XE1–XE9.',
+            'confirm.accepted' => 'Centang konfirmasi bahwa kata sandi awal lama tidak berlaku lagi.',
+        ]);
+        $className = $validated['class_name'] ?? null;
+
+        $rows = DB::transaction(function () use ($className): array {
+            $students = $this->resettableStudents()
+                ->when($className, fn ($query, string $class) => $query->where('class_name', $class))
+                ->orderBy('class_name')
+                ->orderBy('name')
+                ->lockForUpdate()
+                ->get();
+
+            return $students->map(function (User $student): array {
+                $password = $this->importer->initialPassword();
+                $student->forceFill(['password' => $password, 'must_change_password' => true])->save();
+
+                return [
+                    'name' => $student->name,
+                    'nis' => (string) $student->nis,
+                    'email' => $student->email,
+                    'class_name' => (string) $student->class_name,
+                    'password' => $password,
+                ];
+            })->all();
+        });
+
+        if ($rows === []) {
+            return back()->withErrors(['class_name' => 'Tidak ada siswa yang masih memakai kata sandi awal'.($className ? ' di kelas '.$className : '').'.']);
+        }
+
+        return redirect()->route('admin.students.import')
+            ->with('status', 'Kata sandi awal baru dibuat untuk '.count($rows).' siswa'.($className ? ' kelas '.$className : '').'. Kata sandi awal lama tidak berlaku lagi.')
+            ->with('password_reset_result', [
+                'class_name' => $className,
+                'rows' => $rows,
+                'credentials_csv' => $this->credentialsCsv($rows),
+            ]);
+    }
+
+    /**
+     * @return Builder<User>
+     */
+    private function resettableStudents(): Builder
+    {
+        return User::query()->where('role', 'student')->where('must_change_password', true);
+    }
+
+    /**
+     * @param  list<array{name: string, nis: string, email: string, class_name: string, password: string}>  $rows
+     */
+    private function credentialsCsv(array $rows): string
+    {
+        return base64_encode(
+            "\xEF\xBB\xBF".'Nama,NIS,Email,Kelas,Kata sandi awal'."\r\n"
+            .collect($rows)->map(fn (array $row) => collect([$row['name'], $row['nis'], $row['email'], $row['class_name'], $row['password']])
+                ->map(fn (string $value) => '"'.str_replace('"', '""', $this->csvSafe($value)).'"')
+                ->implode(','))->implode("\r\n")
+        );
     }
 
     /**
@@ -130,6 +212,7 @@ class StudentImportController extends Controller
             return back()->withErrors(['file' => $exception->getMessage()]);
         }
 
+        $request->session()->forget(self::FAILED_ROWS_KEY);
         $request->session()->put(self::SESSION_KEY, [
             'id' => (string) Str::uuid(),
             'filename' => Str::limit($file->getClientOriginalName(), 80),
@@ -155,12 +238,8 @@ class StudentImportController extends Controller
         $request->session()->forget(self::SESSION_KEY);
         $result = $this->importer->import($pending['records']);
 
-        $credentialsCsv = $result['created'] === [] ? null : base64_encode(
-            "\xEF\xBB\xBF".'Nama,NIS,Email,Kelas,Kata sandi awal'."\r\n"
-            .collect($result['created'])->map(fn (array $row) => collect([$row['name'], $row['nis'], $row['email'], $row['class_name'], $row['password']])
-                ->map(fn (string $value) => '"'.str_replace('"', '""', $this->csvSafe($value)).'"')
-                ->implode(','))->implode("\r\n")
-        );
+        $credentialsCsv = $result['created'] === [] ? null : $this->credentialsCsv($result['created']);
+        $request->session()->put(self::FAILED_ROWS_KEY, $result['failed']);
 
         return redirect()->route('admin.students.import')
             ->with('status', count($result['created']).' akun baru dibuat, '.count($result['updated']).' siswa diperbarui, '.count($result['failed']).' baris gagal.')
@@ -185,7 +264,7 @@ class StudentImportController extends Controller
      */
     public function downloadErrors(Request $request): StreamedResponse
     {
-        $failedRows = $request->session()->get('student_import_result.failed', []);
+        $failedRows = $request->session()->get(self::FAILED_ROWS_KEY, []);
         abort_if($failedRows === [], 404);
 
         return response()->streamDownload(function () use ($failedRows): void {

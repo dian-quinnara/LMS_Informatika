@@ -168,6 +168,32 @@ class StudentImportTest extends TestCase
         $this->assertStringNotContainsString('Kata sandi', $report);
     }
 
+    public function test_failed_rows_download_works_after_result_page_is_shown(): void
+    {
+        $this->actingAs($this->admin());
+        $this->previewAndImport($this->csvUpload([
+            ['Nama', 'NIS', 'Email', 'Kelas'],
+            ['Siswa Valid', '3001', 'valid3@sekolah.test', 'XE1'],
+            ['Siswa Gagal', '3002', 'gagal3@sekolah.test', 'ZZ9'],
+        ]));
+
+        // Alur browser: halaman hasil tampil dulu, baru tombol unduh diklik (bisa lebih dari sekali).
+        $this->get(route('admin.students.import'))->assertOk()->assertSee('Unduh laporan kesalahan');
+        $this->get(route('admin.students.import'))->assertOk();
+
+        foreach ([1, 2] as $attempt) {
+            $report = $this->get(route('admin.students.import.errors'))
+                ->assertDownload('laporan-baris-gagal-impor.csv')
+                ->streamedContent();
+            $this->assertStringContainsString('Siswa Gagal', $report);
+            $this->assertStringNotContainsString('Siswa Valid', $report);
+        }
+
+        // Unggahan baru menghapus laporan lama.
+        $this->post(route('admin.students.import.preview'), ['file' => $this->xlsxUpload(self::SAMPLE_ROWS)]);
+        $this->get(route('admin.students.import.errors'))->assertNotFound();
+    }
+
     public function test_excel_file_with_shared_strings_and_numeric_nis_is_read(): void
     {
         // Simulasi file buatan Excel: teks di sharedStrings dan NIS tersimpan sebagai angka.

@@ -44,6 +44,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/students/import/preview', [StudentImportController::class, 'preview'])->middleware('throttle:20,1')->name('students.import.preview');
         Route::post('/students/import', [StudentImportController::class, 'store'])->name('students.import.store');
         Route::delete('/students/import', [StudentImportController::class, 'destroy'])->name('students.import.destroy');
+        Route::post('/students/initial-passwords', [StudentImportController::class, 'resetPasswords'])->middleware('throttle:10,1')->name('students.initial-passwords.reset');
     });
 
     Route::middleware('role:student')->group(function (): void {
