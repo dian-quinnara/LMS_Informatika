@@ -12,9 +12,11 @@ use RuntimeException;
 /**
  * Membaca, memvalidasi, dan menyimpan data siswa dari file XLSX/CSV.
  *
- * Aturan: data lama tidak pernah dihapus. Baris dengan email siswa yang sudah ada
- * hanya memperbarui kelas (dan NIS bila belum ada); selain itu dibuat akun baru
- * dengan kata sandi awal sama dengan NIS yang wajib diganti saat login pertama.
+ * Aturan: data lama tidak pernah dihapus. Siswa yang sudah ada dicocokkan lewat email
+ * atau NIS, lalu kelas dan emailnya diperbarui sesuai file. Akun baru (dan siswa lama
+ * yang belum pernah mengganti kata sandi awal) mendapat kata sandi default sekolah dari
+ * .env atau kata sandi acak, yang wajib diganti saat login pertama. NIS tidak pernah
+ * dipakai sebagai kata sandi.
  */
 class StudentImporter
 {
@@ -95,7 +97,7 @@ class StudentImporter
         $nisList = array_values(array_filter(array_column($records, 'nis')));
 
         $usersByEmail = User::query()->whereIn(DB::raw('LOWER(email)'), $emails)->get(['id', 'email', 'nis', 'role'])->keyBy(fn (User $u) => Str::lower($u->email));
-        $usersByNis = User::query()->whereIn('nis', $nisList)->get(['id', 'email', 'nis'])->keyBy('nis');
+        $usersByNis = User::query()->whereIn('nis', $nisList)->get(['id', 'email', 'nis', 'role'])->keyBy('nis');
         $seenEmails = [];
         $seenNis = [];
         $results = [];
@@ -142,6 +144,7 @@ class StudentImporter
 
             $existing = $usersByEmail->get($record['email']);
             $nisOwner = $record['nis'] !== '' ? $usersByNis->get($record['nis']) : null;
+            $record['previous_email'] = null;
 
             if ($existing !== null && $existing->role !== 'student') {
                 $errors[] = 'Email sudah dipakai akun admin.';
@@ -151,10 +154,19 @@ class StudentImporter
                 $errors[] = 'Email sudah terdaftar dengan NIS lain ('.$existing->nis.').';
             }
 
-            if ($nisOwner !== null && ($existing === null || $nisOwner->id !== $existing->id)) {
+            if ($existing === null && $nisOwner !== null) {
+                // NIS sudah terdaftar dengan email lain: siswa yang sama, emailnya diganti ke email di file.
+                if ($nisOwner->role !== 'student') {
+                    $errors[] = 'NIS sudah dipakai akun admin.';
+                } else {
+                    $existing = $nisOwner;
+                    $record['previous_email'] = $nisOwner->email;
+                }
+            } elseif ($nisOwner !== null && $existing !== null && $nisOwner->id !== $existing->id) {
                 $errors[] = 'NIS sudah dipakai akun lain ('.$nisOwner->email.').';
             }
 
+            $record['user_id'] = $existing?->id;
             $record['errors'] = $errors;
             $record['action'] = $errors === [] ? ($existing === null ? 'create' : 'update') : null;
             $results[] = $record;
@@ -183,21 +195,36 @@ class StudentImporter
 
                 if ($row['action'] === 'update') {
                     $student = User::query()
-                        ->whereRaw('LOWER(email) = ?', [$row['email']])
+                        ->whereKey($row['user_id'])
                         ->where('role', 'student')
                         ->lockForUpdate()
                         ->firstOrFail();
-                    $student->forceFill([
+                    $changes = [
                         'class_name' => $row['class_name'],
                         'nis' => $student->nis ?? $row['nis'],
-                    ])->save();
-                    $result['updated'][] = [...$row, 'name' => $student->name];
+                        'email' => $row['email'],
+                    ];
+
+                    // Siswa yang belum pernah mengganti kata sandi awal (mis. masih NIS) diberi kata sandi
+                    // awal baru. Siswa yang sudah memakai kata sandi sendiri tidak di-reset.
+                    $password = $student->must_change_password ? $this->initialPassword() : null;
+                    if ($password !== null) {
+                        $changes['password'] = $password;
+                        $changes['must_change_password'] = true;
+                    }
+
+                    $student->forceFill($changes)->save();
+                    $result['updated'][] = [
+                        ...$row,
+                        'name' => $student->name,
+                        'password_reset' => $password !== null,
+                        'password' => $this->displayPassword($password),
+                    ];
 
                     continue;
                 }
 
-                // Kata sandi awal = NIS (permintaan sekolah); wajib diganti saat login pertama.
-                $password = $row['nis'];
+                $password = $this->initialPassword();
                 $student = new User;
                 $student->forceFill([
                     'name' => $row['name'],
@@ -208,7 +235,7 @@ class StudentImporter
                     'password' => $password,
                     'must_change_password' => true,
                 ])->save();
-                $result['created'][] = [...$row, 'password' => $password];
+                $result['created'][] = [...$row, 'password' => $this->displayPassword($password)];
             }
 
             return $result;
@@ -216,9 +243,36 @@ class StudentImporter
     }
 
     /**
-     * Kata sandi awal acak (kriptografis), tanpa simbol agar mudah dibagikan.
+     * Kata sandi default sekolah dari .env (STUDENT_DEFAULT_PASSWORD), atau null bila tidak diatur.
+     */
+    public function defaultPassword(): ?string
+    {
+        $password = config('students.default_password');
+
+        return is_string($password) && $password !== '' ? $password : null;
+    }
+
+    /**
+     * Kata sandi awal: kata sandi default sekolah bila diatur, selain itu acak per siswa.
+     * NIS tidak pernah dipakai sebagai kata sandi.
      */
     public function initialPassword(): string
+    {
+        return $this->defaultPassword() ?? $this->randomPassword();
+    }
+
+    /**
+     * Kata sandi default tidak ditampilkan ulang di halaman/CSV; hanya kata sandi acak yang perlu dibagikan.
+     */
+    public function displayPassword(?string $password): ?string
+    {
+        return $password === null || $password === $this->defaultPassword() ? null : $password;
+    }
+
+    /**
+     * Kata sandi awal acak (kriptografis), tanpa simbol agar mudah dibagikan.
+     */
+    public function randomPassword(): string
     {
         do {
             $password = Str::password(10, letters: true, numbers: true, symbols: false);

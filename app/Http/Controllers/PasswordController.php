@@ -21,7 +21,20 @@ class PasswordController extends Controller
     {
         $validated = $request->validate([
             'current_password' => ['required', 'string', 'current_password'],
-            'password' => ['required', 'string', 'confirmed', 'different:current_password', Password::min(8)->letters()->numbers()],
+            'password' => [
+                'required', 'string', 'confirmed', 'different:current_password', Password::min(8)->letters()->numbers(),
+                // Kata sandi baru tidak boleh mudah ditebak: bukan kata sandi default sekolah dan bukan NIS.
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    $default = config('students.default_password');
+                    $nis = $request->user()->nis;
+
+                    if (is_string($default) && $default !== '' && hash_equals($default, (string) $value)) {
+                        $fail('Kata sandi baru tidak boleh sama dengan kata sandi default sekolah.');
+                    } elseif ($nis !== null && $nis !== '' && str_contains(strtolower((string) $value), strtolower($nis))) {
+                        $fail('Kata sandi baru tidak boleh memuat NIS.');
+                    }
+                },
+            ],
         ], [
             'current_password.required' => 'Masukkan kata sandi saat ini.',
             'current_password.current_password' => 'Kata sandi saat ini tidak sesuai.',

@@ -45,6 +45,7 @@ class StudentImportController extends Controller
                 ->groupBy('class_name')
                 ->pluck('total', 'class_name'),
             'passwordReset' => $request->session()->get('password_reset_result'),
+            'defaultPasswordSet' => $this->importer->defaultPassword() !== null,
         ]);
     }
 
@@ -56,7 +57,7 @@ class StudentImportController extends Controller
     {
         $validated = $request->validate([
             'class_name' => ['nullable', 'string', Rule::in(config('attendance.grade_x_classes', []))],
-            'mode' => ['nullable', Rule::in(['random', 'nis'])],
+            'mode' => ['nullable', Rule::in(['default', 'random'])],
             'confirm' => ['accepted'],
         ], [
             'class_name.in' => 'Kelas harus salah satu dari XE1–XE9.',
@@ -64,20 +65,23 @@ class StudentImportController extends Controller
             'confirm.accepted' => 'Centang konfirmasi bahwa kata sandi awal lama tidak berlaku lagi.',
         ]);
         $className = $validated['class_name'] ?? null;
-        $useNis = ($validated['mode'] ?? 'random') === 'nis';
+        $defaultPassword = $this->importer->defaultPassword();
+        $mode = $validated['mode'] ?? ($defaultPassword !== null ? 'default' : 'random');
 
-        $rows = DB::transaction(function () use ($className, $useNis): array {
+        if ($mode === 'default' && $defaultPassword === null) {
+            return back()->withErrors(['mode' => 'Kata sandi default belum diatur. Isi STUDENT_DEFAULT_PASSWORD di file .env atau pilih kata sandi acak.']);
+        }
+
+        $rows = DB::transaction(function () use ($className, $mode, $defaultPassword): array {
             $students = $this->resettableStudents()
                 ->when($className, fn ($query, string $class) => $query->where('class_name', $class))
-                // Mode NIS hanya untuk siswa yang punya NIS.
-                ->when($useNis, fn ($query) => $query->whereNotNull('nis')->where('nis', '!=', ''))
                 ->orderBy('class_name')
                 ->orderBy('name')
                 ->lockForUpdate()
                 ->get();
 
-            return $students->map(function (User $student) use ($useNis): array {
-                $password = $useNis ? (string) $student->nis : $this->importer->initialPassword();
+            return $students->map(function (User $student) use ($mode, $defaultPassword): array {
+                $password = $mode === 'default' ? $defaultPassword : $this->importer->randomPassword();
                 $student->forceFill(['password' => $password, 'must_change_password' => true])->save();
 
                 return [
@@ -85,17 +89,17 @@ class StudentImportController extends Controller
                     'nis' => (string) $student->nis,
                     'email' => $student->email,
                     'class_name' => (string) $student->class_name,
-                    'password' => $password,
+                    'password' => $this->importer->displayPassword($password),
                 ];
             })->all();
         });
 
         if ($rows === []) {
-            return back()->withErrors(['class_name' => 'Tidak ada siswa yang masih memakai kata sandi awal'.($useNis ? ' dan memiliki NIS' : '').($className ? ' di kelas '.$className : '').'.']);
+            return back()->withErrors(['class_name' => 'Tidak ada siswa yang masih memakai kata sandi awal'.($className ? ' di kelas '.$className : '').'.']);
         }
 
         return redirect()->route('admin.students.import')
-            ->with('status', 'Kata sandi awal '.($useNis ? '(sama dengan NIS) ' : '').'dibuat untuk '.count($rows).' siswa'.($className ? ' kelas '.$className : '').'. Kata sandi awal lama tidak berlaku lagi.')
+            ->with('status', 'Kata sandi awal '.($mode === 'default' ? '(kata sandi default) ' : '').'dibuat untuk '.count($rows).' siswa'.($className ? ' kelas '.$className : '').'. Kata sandi awal lama tidak berlaku lagi.')
             ->with('password_reset_result', [
                 'class_name' => $className,
                 'rows' => $rows,
@@ -112,13 +116,15 @@ class StudentImportController extends Controller
     }
 
     /**
-     * @param  list<array{name: string, nis: string, email: string, class_name: string, password: string}>  $rows
+     * Daftar akun untuk dibagikan. Kata sandi default sekolah tidak ditulis ulang di file.
+     *
+     * @param  list<array{name: string, nis: string, email: string, class_name: string, password: ?string}>  $rows
      */
     private function credentialsCsv(array $rows): string
     {
         return base64_encode(
-            "\xEF\xBB\xBF".'Nama,NIS,Email,Kelas,Kata sandi awal'."\r\n"
-            .collect($rows)->map(fn (array $row) => collect([$row['name'], $row['nis'], $row['email'], $row['class_name'], $row['password']])
+            "\xEF\xBB\xBF".'Nama,NIS,Email (akun login),Kelas,Kata sandi awal'."\r\n"
+            .collect($rows)->map(fn (array $row) => collect([$row['name'], $row['nis'], $row['email'], $row['class_name'], $row['password'] ?? 'Kata sandi default sekolah'])
                 ->map(fn (string $value) => '"'.str_replace('"', '""', $this->csvSafe($value)).'"')
                 ->implode(','))->implode("\r\n")
         );
@@ -153,8 +159,8 @@ class StudentImportController extends Controller
                     ['3. NIS: nomor induk siswa, unik untuk setiap siswa.'],
                     ['4. Email: alamat email untuk login, unik untuk setiap siswa.'],
                     ['5. Kelas: salah satu dari '.implode(', ', $classes).'.'],
-                    ['6. Siswa yang emailnya sudah terdaftar hanya diperbarui kelasnya; data lama tidak dihapus.'],
-                    ['7. Akun baru login dengan email dan kata sandi awal = NIS, lalu wajib menggantinya saat login pertama.'],
+                    ['6. Siswa yang NIS atau emailnya sudah terdaftar diperbarui kelas dan emailnya; data lama tidak dihapus.'],
+                    ['7. Siswa login dengan email di file ini dan kata sandi awal dari admin, lalu wajib menggantinya saat login pertama.'],
                 ],
                 'widths' => [100],
                 'bold_first_row' => true,
@@ -243,7 +249,9 @@ class StudentImportController extends Controller
         $request->session()->forget(self::SESSION_KEY);
         $result = $this->importer->import($pending['records']);
 
-        $credentialsCsv = $result['created'] === [] ? null : $this->credentialsCsv($result['created']);
+        // Akun yang perlu dibagikan: akun baru dan siswa lama yang kata sandi awalnya dibuat ulang.
+        $credentialRows = [...$result['created'], ...array_values(array_filter($result['updated'], fn (array $row) => $row['password_reset']))];
+        $credentialsCsv = $credentialRows === [] ? null : $this->credentialsCsv($credentialRows);
         $request->session()->put(self::FAILED_ROWS_KEY, $result['failed']);
 
         return redirect()->route('admin.students.import')

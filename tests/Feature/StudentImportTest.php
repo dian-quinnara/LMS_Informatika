@@ -128,7 +128,9 @@ class StudentImportTest extends TestCase
             $this->assertTrue($student->must_change_password);
             $this->assertNotSame($created['password'], $student->password);
             $this->assertTrue(Hash::check($created['password'], $student->password));
-            $this->assertSame($nis, $created['password']);
+            $this->assertNotSame($nis, $created['password']);
+            $this->assertFalse(Hash::check($nis, $student->password));
+            $this->assertMatchesRegularExpression('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9]{10}$/', $created['password']);
         }
 
         $this->get(route('admin.students.import'))->assertOk()->assertSee('Unduh kredensial');
@@ -224,6 +226,8 @@ class StudentImportTest extends TestCase
     {
         User::factory()->create(['email' => 'lama@sekolah.test', 'nis' => '777', 'role' => 'student', 'class_name' => 'XE3']);
         User::factory()->create(['email' => 'guru@sekolah.test', 'role' => 'admin']);
+        User::factory()->create(['email' => 'punya@sekolah.test', 'nis' => '888', 'role' => 'student', 'class_name' => 'XE4']);
+        User::factory()->create(['email' => 'orang.lain@sekolah.test', 'nis' => '889', 'role' => 'student', 'class_name' => 'XE4']);
         $this->actingAs($this->admin());
 
         $rows = [
@@ -232,7 +236,8 @@ class StudentImportTest extends TestCase
             ['Kelas Salah', '1002', 'kelas@sekolah.test', 'XI F1'],
             ['', '1003', 'tanpa-nama@sekolah.test', 'XE1'],
             ['Email Salah', '1004', 'bukan-email', 'XE1'],
-            ['NIS Dipakai', '777', 'baru@sekolah.test', 'XE1'],
+            ['Ganti Email', '777', 'baru@sekolah.test', 'XE1'],
+            ['Bentrok', '889', 'punya@sekolah.test', 'XE1'],
             ['Email Admin', '1005', 'guru@sekolah.test', 'XE1'],
             ['Duplikat Email', '1006', 'valid1@sekolah.test', 'XE2'],
             ['Duplikat NIS', '1001', 'lain@sekolah.test', 'XE2'],
@@ -242,7 +247,8 @@ class StudentImportTest extends TestCase
         $this->post(route('admin.students.import.preview'), ['file' => $this->xlsxUpload($rows)]);
         $this->get(route('admin.students.import'))
             ->assertOk()
-            ->assertSee('1 SIAP · 8 GAGAL')
+            ->assertSee('2 SIAP · 8 GAGAL')
+            ->assertSee('Email login diganti dari lama@sekolah.test')
             ->assertSee('Kelas &quot;XIF1&quot; tidak dikenal', false)
             ->assertSee('Nama wajib diisi.')
             ->assertSee('Email tidak valid.')
@@ -255,9 +261,14 @@ class StudentImportTest extends TestCase
         $result = $this->previewAndImportFromSession();
 
         $this->assertCount(1, $result['created']);
+        $this->assertCount(1, $result['updated']);
         $this->assertCount(8, $result['failed']);
         $this->assertSame(1, User::query()->where('email', 'valid1@sekolah.test')->count());
-        $this->assertSame('XE3', User::query()->where('email', 'lama@sekolah.test')->value('class_name'));
+        // NIS 777 sudah terdaftar: siswa yang sama, email dan kelasnya diganti sesuai file.
+        $this->assertSame(['baru@sekolah.test', 'XE1'], array_values(User::query()->where('nis', '777')->first(['email', 'class_name'])->only(['email', 'class_name'])));
+        // Email milik siswa NIS 888 dan NIS milik siswa lain: ditolak, keduanya tidak berubah.
+        $this->assertSame('888', User::query()->where('email', 'punya@sekolah.test')->value('nis'));
+        $this->assertSame('orang.lain@sekolah.test', User::query()->where('nis', '889')->value('email'));
         $this->assertDatabaseMissing('users', ['email' => 'kelas@sekolah.test']);
         $this->assertSame('admin', User::query()->where('email', 'guru@sekolah.test')->value('role'));
     }

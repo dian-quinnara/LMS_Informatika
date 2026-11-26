@@ -33,7 +33,7 @@
                 @csrf
                 <label class="field-label" for="student-file">File data siswa (.xlsx atau .csv, maks. 2 MB)</label>
                 <input id="student-file" name="file" type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-                <small class="optional">File diperiksa dulu. Belum ada data yang disimpan sebelum Anda menekan "Simpan". Akun baru memakai kata sandi awal = NIS dan wajib diganti saat login pertama.</small>
+                <small class="optional">File diperiksa dulu. Belum ada data yang disimpan sebelum Anda menekan "Simpan". {{ $defaultPasswordSet ? 'Akun baru memakai kata sandi default sekolah' : 'Akun baru mendapat kata sandi acak' }} dan wajib diganti saat login pertama. Siswa yang NIS-nya sudah terdaftar diganti emailnya sesuai file.</small>
                 <button class="button button-primary" type="submit">Periksa dan tampilkan pratinjau</button>
             </form>
         </section>
@@ -52,8 +52,8 @@
                 </select>
                 <label class="field-label" for="reset-mode">Jenis kata sandi awal</label>
                 <select id="reset-mode" name="mode">
-                    <option value="random" @selected(old('mode', 'random') === 'random')>Acak 10 karakter (lebih aman)</option>
-                    <option value="nis" @selected(old('mode') === 'nis')>Sama dengan NIS siswa</option>
+                    <option value="default" @selected(old('mode', $defaultPasswordSet ? 'default' : 'random') === 'default') @disabled(! $defaultPasswordSet)>Kata sandi default sekolah{{ $defaultPasswordSet ? '' : ' (belum diatur di .env)' }}</option>
+                    <option value="random" @selected(old('mode', $defaultPasswordSet ? 'default' : 'random') === 'random')>Acak 10 karakter per siswa</option>
                 </select>
                 <label class="check-line"><input type="checkbox" name="confirm" value="1" required> Kata sandi awal lama tidak berlaku lagi setelah dibuat ulang.</label>
                 <button class="button button-primary" type="submit" @disabled($resettableCounts->sum() === 0)>Buat ulang kata sandi awal</button>
@@ -70,14 +70,14 @@
             <section class="token-reveal" role="status">
                 <div>
                     <span class="section-kicker">KATA SANDI AWAL</span>
-                    <p>Kata sandi hanya ditampilkan sekali. Unduh atau catat sekarang, lalu bagikan ke masing-masing siswa.</p>
+                    <p>Siswa login dengan email masing-masing. Kata sandi acak hanya ditampilkan sekali; kata sandi default sekolah tidak ditampilkan ulang.</p>
                     <small>Siswa wajib mengganti kata sandi saat login pertama.</small>
                 </div>
                 <a class="button button-quiet" href="data:text/csv;charset=utf-8;base64,{{ $passwordReset['credentials_csv'] }}" download="kredensial-siswa.csv">Unduh kredensial (.csv)</a>
             </section>
             @foreach ($passwordReset['rows'] as $row)
                 <article class="session-row">
-                    <div><strong>{{ $row['name'] }} · {{ $row['class_name'] ?: 'tanpa kelas' }}</strong><small>NIS {{ $row['nis'] ?: '–' }} · {{ $row['email'] }} · kata sandi awal <code>{{ $row['password'] }}</code></small></div>
+                    <div><strong>{{ $row['name'] }} · {{ $row['class_name'] ?: 'tanpa kelas' }}</strong><small>NIS {{ $row['nis'] ?: '–' }} · login {{ $row['email'] }} · @if ($row['password']) kata sandi awal <code>{{ $row['password'] }}</code> @else kata sandi default sekolah @endif</small></div>
                     <span class="status-badge">Dibuat ulang</span>
                 </article>
             @endforeach
@@ -99,6 +99,9 @@
                     <div>
                         <strong>Baris {{ $row['line'] }} · {{ $row['name'] ?: '(tanpa nama)' }}</strong>
                         <small>NIS {{ $row['nis'] ?: '–' }} · {{ $row['email'] ?: '–' }} · Kelas {{ $row['class_name'] ?: '–' }}</small>
+                        @if (! empty($row['previous_email']))
+                            <small class="optional">Email login diganti dari {{ $row['previous_email'] }}</small>
+                        @endif
                         @foreach ($row['errors'] as $error)
                             <small class="optional">✕ {{ $error }}</small>
                         @endforeach
@@ -106,7 +109,7 @@
                     @if ($row['errors'] !== [])
                         <span class="draft-badge">Gagal</span>
                     @elseif ($row['action'] === 'update')
-                        <span class="active-badge">Perbarui kelas</span>
+                        <span class="active-badge">{{ ! empty($row['previous_email']) ? 'Ganti email' : 'Perbarui kelas' }}</span>
                     @else
                         <span class="status-badge">Akun baru</span>
                     @endif
@@ -136,11 +139,11 @@
                 <div><span class="section-kicker">HASIL IMPOR · {{ $result['filename'] }}</span><h2>Akun baru</h2></div>
                 <span class="section-count">{{ count($result['created']) }} AKUN</span>
             </div>
-            @if ($result['created'] !== [])
+            @if ($result['credentials_csv'])
                 <section class="token-reveal" role="status">
                     <div>
-                        <span class="section-kicker">KATA SANDI AWAL</span>
-                        <p>Kata sandi hanya ditampilkan sekali. Unduh atau catat sekarang, lalu bagikan ke masing-masing siswa.</p>
+                        <span class="section-kicker">AKUN LOGIN SISWA</span>
+                        <p>Siswa login dengan email masing-masing. Kata sandi acak hanya ditampilkan sekali; kata sandi default sekolah tidak ditampilkan ulang.</p>
                         <small>Siswa wajib mengganti kata sandi saat login pertama.</small>
                     </div>
                     <a class="button button-quiet" href="data:text/csv;charset=utf-8;base64,{{ $result['credentials_csv'] }}" download="kredensial-siswa.csv">Unduh kredensial (.csv)</a>
@@ -148,7 +151,7 @@
             @endif
             @forelse ($result['created'] as $row)
                 <article class="session-row">
-                    <div><strong>{{ $row['name'] }} · {{ $row['class_name'] }}</strong><small>NIS {{ $row['nis'] }} · {{ $row['email'] }} · kata sandi awal <code>{{ $row['password'] }}</code></small></div>
+                    <div><strong>{{ $row['name'] }} · {{ $row['class_name'] }}</strong><small>NIS {{ $row['nis'] }} · login {{ $row['email'] }} · @if ($row['password']) kata sandi awal <code>{{ $row['password'] }}</code> @else kata sandi default sekolah @endif</small></div>
                     <span class="status-badge">Dibuat</span>
                 </article>
             @empty
@@ -161,8 +164,8 @@
                 <div class="section-heading"><div><span class="section-kicker">HASIL IMPOR</span><h2>Siswa diperbarui</h2></div><span class="section-count">{{ count($result['updated']) }} SISWA</span></div>
                 @foreach ($result['updated'] as $row)
                     <article class="session-row">
-                        <div><strong>{{ $row['name'] }} · {{ $row['class_name'] }}</strong><small>NIS {{ $row['nis'] }} · {{ $row['email'] }} · kata sandi tidak diubah</small></div>
-                        <span class="active-badge">Kelas diperbarui</span>
+                        <div><strong>{{ $row['name'] }} · {{ $row['class_name'] }}</strong><small>NIS {{ $row['nis'] }} · login {{ $row['email'] }}@if (! empty($row['previous_email'])) (sebelumnya {{ $row['previous_email'] }})@endif · @if (! empty($row['password_reset'])) @if ($row['password']) kata sandi awal <code>{{ $row['password'] }}</code> @else kata sandi awal direset ke default sekolah @endif @else kata sandi milik siswa tidak diubah @endif</small></div>
+                        <span class="active-badge">{{ ! empty($row['previous_email']) ? 'Email diganti' : 'Kelas diperbarui' }}</span>
                     </article>
                 @endforeach
             </section>
