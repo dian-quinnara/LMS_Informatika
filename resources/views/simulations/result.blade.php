@@ -11,7 +11,7 @@
     <section class="content-section">
         <div class="section-heading"><div><span class="section-kicker">TINJAUAN</span><h2>Jawabanmu</h2></div></div>
         @foreach ($attempt->answers as $answer)
-            <article class="list-row result-row"><div><strong>{{ $answer->question->prompt }}</strong><small>Jawabanmu: {{ $answer->answer ? ($answer->question->choices[$answer->answer] ?? 'Pilihan tidak tersedia') : 'Tidak dijawab' }}</small></div><span class="{{ $answer->is_correct ? 'status-badge' : 'draft-badge' }}">{{ $answer->is_correct ? 'Benar' : 'Belum tepat' }}</span></article>
+            <article class="list-row result-row"><div><strong>{{ $answer->question->prompt }}</strong><small>Jawabanmu: {{ $answer->answer ? ($answer->question->choices[$answer->answer] ?? 'Pilihan tidak tersedia') : 'Tidak dijawab' }}</small>@if ($answer->question->explanation)<small>Pembahasan: {{ $answer->question->explanation }}</small>@endif</div><span class="{{ $answer->is_correct ? 'status-badge' : 'draft-badge' }}">{{ $answer->is_correct ? 'Benar' : 'Belum tepat' }}</span></article>
         @endforeach
     </section>
 @endsection

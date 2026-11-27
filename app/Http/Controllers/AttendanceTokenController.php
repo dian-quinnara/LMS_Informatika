@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceTokenController extends Controller
 {
@@ -91,7 +92,7 @@ class AttendanceTokenController extends Controller
         ]);
 
         return redirect()
-            ->route('dashboard')
+            ->route('admin.attendance.index')
             ->with('status', 'Sesi presensi '.$attendanceToken->displayName().' berhasil dibuat. Bagikan token ini kepada siswa.')
             ->with('attendance_session', [
                 'id' => $attendanceToken->id,
@@ -130,6 +131,53 @@ class AttendanceTokenController extends Controller
      * Laporan presensi per kelas dan rentang tanggal.
      */
     public function report(Request $request): View
+    {
+        return view('admin.attendance-report', $this->reportData($request));
+    }
+
+    /**
+     * Unduh rekap presensi (kelas + rentang tanggal) sebagai CSV yang bisa dibuka di Excel.
+     */
+    public function downloadReport(Request $request): StreamedResponse
+    {
+        $data = $this->reportData($request);
+
+        if ($data['className'] === null) {
+            throw ValidationException::withMessages(['class_name' => 'Pilih kelas sebelum mengunduh laporan.']);
+        }
+
+        $filename = 'presensi-'.$data['className'].'-'.$data['dateFrom']->format('Ymd').'-'.$data['dateTo']->format('Ymd').'.csv';
+
+        return response()->streamDownload(function () use ($data): void {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            $sessions = $data['sessions'];
+            $header = ['No', 'Nama', 'NIS', 'Email', 'Kelas'];
+            foreach ($sessions as $session) {
+                $header[] = ($session->title ?: 'Sesi').' '.$session->starts_at->format('d/m/Y H:i');
+            }
+            $header[] = 'Jumlah hadir';
+            fputcsv($out, $header);
+
+            foreach ($data['studentSummary'] as $index => $row) {
+                $student = $row['student'];
+                $line = [$index + 1, $this->csvSafe($student->name), $this->csvSafe((string) $student->nis), $this->csvSafe($student->email), $student->class_name];
+                foreach ($sessions as $session) {
+                    $attendance = $session->attendances->firstWhere('user_id', $student->id);
+                    $line[] = $attendance ? 'Hadir '.$attendance->created_at->format('H:i') : 'Belum presensi';
+                }
+                $line[] = $row['attended'].'/'.$sessions->count();
+                fputcsv($out, $line);
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function reportData(Request $request): array
     {
         $classes = config('attendance.grade_x_classes', []);
         $validated = $request->validate([
@@ -208,7 +256,7 @@ class AttendanceTokenController extends Controller
             })->values();
         }
 
-        return view('admin.attendance-report', [
+        return [
             'classes' => $classes,
             'className' => $className,
             'dateFrom' => $dateFrom,
@@ -219,7 +267,7 @@ class AttendanceTokenController extends Controller
             'sessions' => $sessions,
             'roster' => $roster,
             'studentSummary' => $studentSummary,
-        ]);
+        ];
     }
 
     /**
@@ -253,8 +301,16 @@ class AttendanceTokenController extends Controller
             ->where('role', 'student')
             ->where('class_name', $className)
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'class_name'])
+            ->get(['id', 'name', 'nis', 'email', 'class_name'])
             ->toBase();
+    }
+
+    /**
+     * Cegah formula injection saat CSV dibuka di Excel.
+     */
+    private function csvSafe(string $value): string
+    {
+        return preg_match('/^[=+\-@\t\r]/', $value) === 1 ? "'".$value : $value;
     }
 
     private function hashToken(string $token): string

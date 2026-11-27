@@ -1,8 +1,8 @@
-{{-- Kelola Kelas: sesi presensi kelas X (XE1–XE9). Memakai komponen gaya yang sudah ada. --}}
+{{-- Kelola Presensi: sesi presensi kelas X (XE1–XE9). Memakai komponen gaya yang sudah ada. --}}
 <section class="content-section" id="kelas-x">
     <div class="section-heading">
         <div><span class="section-kicker">KELAS X · XE1–XE9</span><h2>Presensi kelas</h2></div>
-        <a class="text-link" href="{{ route('admin.attendance-report') }}">Laporan presensi <span aria-hidden="true">&#8594;</span></a>
+        <a class="text-link" href="{{ route('admin.classes.index') }}">Atur kelas siswa <span aria-hidden="true">&#8594;</span></a>
     </div>
     <div class="management-grid">
         <section class="form-panel">
@@ -27,27 +27,22 @@
         </section>
 
         <section class="form-panel">
-            <div class="panel-heading"><span class="panel-index panel-index-yellow">02</span><div><span class="section-kicker">ROSTER KELAS</span><h2>Atur kelas siswa</h2></div></div>
-            <form method="POST" action="{{ route('admin.student-classes.update') }}" class="form-stack">
-                @csrf
-                @method('PATCH')
-                <label class="field-label" for="roster-student">Siswa</label>
-                <select id="roster-student" name="user_id" required>
-                    <option value="">Pilih siswa</option>
-                    @foreach ($classStudents as $student)
-                        <option value="{{ $student->id }}">{{ $student->name }} · {{ $student->class_name ?? 'belum ada kelas' }}</option>
-                    @endforeach
-                </select>
-                <label class="field-label" for="roster-class">Kelas</label>
-                <select id="roster-class" name="class_name">
-                    <option value="">Tanpa kelas</option>
+            <div class="panel-heading"><span class="panel-index panel-index-yellow">02</span><div><span class="section-kicker">REKAP PRESENSI</span><h2>Laporan &amp; unduhan</h2></div></div>
+            <form method="GET" action="{{ route('admin.attendance-report.download') }}" class="form-stack">
+                <label class="field-label" for="download-class">Kelas</label>
+                <select id="download-class" name="class_name" required>
+                    <option value="">Pilih kelas</option>
                     @foreach ($gradeXClasses as $class)
-                        <option value="{{ $class }}">{{ $class }}</option>
+                        <option value="{{ $class }}">{{ $class }} · {{ $rosterCounts[$class] ?? 0 }} siswa</option>
                     @endforeach
                 </select>
-                <small class="optional">Siswa hanya dapat presensi pada sesi kelasnya sendiri. {{ $classStudents->whereNull('class_name')->count() }} siswa belum memiliki kelas.</small>
-                <button class="button button-primary" type="submit" @disabled($classStudents->isEmpty())>Simpan kelas siswa</button>
-                <a class="text-link" href="{{ route('admin.students.import') }}">Impor data siswa dari Excel/CSV <span aria-hidden="true">&#8594;</span></a>
+                <label class="field-label" for="download-date-from">Dari tanggal</label>
+                <input id="download-date-from" name="date_from" type="date" value="{{ now()->startOfMonth()->format('Y-m-d') }}" required>
+                <label class="field-label" for="download-date-to">Sampai tanggal</label>
+                <input id="download-date-to" name="date_to" type="date" value="{{ now()->format('Y-m-d') }}" required>
+                <small class="optional">File CSV dapat dibuka di Excel: satu baris per siswa, satu kolom per sesi.</small>
+                <button class="button button-primary" type="submit">Unduh laporan presensi</button>
+                <a class="text-link" href="{{ route('admin.attendance-report') }}">Lihat rekap di layar <span aria-hidden="true">&#8594;</span></a>
             </form>
         </section>
     </div>
@@ -55,7 +50,7 @@
 
 <section class="content-section manage-lists">
     <div class="section-heading"><div><span class="section-kicker">SESI TERSIMPAN</span><h2>Sesi presensi</h2></div><span class="section-count">{{ $attendanceSessions->count() }} SESI</span></div>
-    <form method="GET" action="{{ route('dashboard') }}" class="form-panel form-stack">
+    <form method="GET" action="{{ route('admin.attendance.index') }}" class="form-panel form-stack">
         <div class="form-inline">
             <div>
                 <label class="field-label" for="filter-class">Kelas</label>
@@ -86,7 +81,7 @@
         </div>
         <div class="button-group">
             <button class="button button-primary" type="submit">Terapkan filter</button>
-            <a class="button button-quiet" href="{{ route('dashboard') }}#kelas-x">Atur ulang</a>
+            <a class="button button-quiet" href="{{ route('admin.attendance.index') }}">Atur ulang</a>
         </div>
     </form>
     @forelse ($attendanceSessions as $session)

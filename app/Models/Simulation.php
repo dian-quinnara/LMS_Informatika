@@ -13,7 +13,7 @@ class Simulation extends Model
     /** @use HasFactory<SimulationFactory> */
     use HasFactory;
 
-    protected $fillable = ['subject_id', 'title', 'description', 'duration_minutes', 'is_published', 'published_at'];
+    protected $fillable = ['subject_id', 'title', 'description', 'duration_minutes', 'max_attempts', 'is_published', 'published_at'];
 
     protected function casts(): array
     {

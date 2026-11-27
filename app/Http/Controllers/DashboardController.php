@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
+use App\Models\Attempt;
+use App\Models\Attendance;
 use App\Models\AttendanceToken;
 use App\Models\Material;
 use App\Models\Simulation;
@@ -9,7 +12,6 @@ use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -44,7 +46,12 @@ class DashboardController extends Controller
             })
             ->orderBy('starts_at')
             ->get();
-        $classManagement = $user->role === 'admin' ? $this->classManagementData($request) : [];
+        $adminSummary = $user->role === 'admin' ? $this->adminSummary() : [];
+        $announcements = $user->role === 'admin' ? collect() : Announcement::query()
+            ->visibleTo($user->class_name)
+            ->latest()
+            ->take(5)
+            ->get();
         $attendanceHistory = $user->attendances()
             ->with(['subject', 'attendanceToken'])
             ->latest()
@@ -57,8 +64,10 @@ class DashboardController extends Controller
         $attempts = $user->attempts()->with('simulation.subject')->latest()->take(5)->get();
         $stats = $user->role === 'admin' ? [
             'students' => User::query()->where('role', 'student')->count(),
-            'subjects' => $subjects->count(),
-            'materials' => Material::query()->count(),
+            'classes' => count(config('attendance.grade_x_classes', [])),
+            'attendance_today' => Attendance::query()->whereDate('attended_on', today())->count(),
+            'active_sessions' => AttendanceToken::query()->gradeX()->withStatus(AttendanceToken::STATUS_ACTIVE)->count(),
+            'materials' => Material::query()->where('is_published', true)->count(),
             'simulations' => Simulation::query()->count(),
         ] : [
             'subjects' => $subjects->count(),
@@ -68,65 +77,44 @@ class DashboardController extends Controller
         ];
 
         return view('dashboard', [
-            ...compact('user', 'studentSection', 'subjects', 'learningTopics', 'simulations', 'attendanceTokens', 'attendanceHistory', 'attendedTokenIds', 'attempts', 'stats'),
-            ...$classManagement,
+            ...compact('user', 'studentSection', 'subjects', 'learningTopics', 'simulations', 'attendanceTokens', 'attendanceHistory', 'attendedTokenIds', 'attempts', 'stats', 'announcements'),
+            ...$adminSummary,
         ]);
     }
 
     /**
-     * Data halaman Kelola Kelas: sesi presensi kelas X, filter, dan roster siswa.
+     * Ringkasan Dashboard Admin: presensi hari ini, sesi aktif, dan hasil kuis.
      *
      * @return array<string, mixed>
      */
-    private function classManagementData(Request $request): array
+    private function adminSummary(): array
     {
         $classes = config('attendance.grade_x_classes', []);
-        $statusLabels = AttendanceToken::STATUS_LABELS;
-        $filters = [
-            'class' => in_array($request->query('class'), $classes, true) ? $request->query('class') : null,
-            'status' => array_key_exists((string) $request->query('status'), $statusLabels) ? $request->query('status') : null,
-            'date_from' => $this->validDate($request->query('date_from')),
-            'date_to' => $this->validDate($request->query('date_to')),
-        ];
-
-        $attendanceSessions = AttendanceToken::query()
-            ->gradeX()
-            ->withCount('attendances')
-            ->when($filters['class'], fn (Builder $query, string $class) => $query->where('class_name', $class))
-            ->when($filters['status'], fn (Builder $query, string $status) => $query->withStatus($status))
-            ->when($filters['date_from'], fn (Builder $query, string $date) => $query->where('starts_at', '>=', Carbon::parse($date)->startOfDay()))
-            ->when($filters['date_to'], fn (Builder $query, string $date) => $query->where('starts_at', '<=', Carbon::parse($date)->endOfDay()))
-            ->orderByDesc('starts_at')
-            ->limit(50)
-            ->get();
-
-        $students = User::query()
-            ->where('role', 'student')
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'class_name']);
+        $studentCounts = User::query()->where('role', 'student')->whereIn('class_name', $classes)
+            ->selectRaw('class_name, count(*) as total')->groupBy('class_name')->pluck('total', 'class_name');
+        $todayCounts = Attendance::query()->whereDate('attended_on', today())
+            ->join('users', 'users.id', '=', 'attendances.user_id')
+            ->whereIn('users.class_name', $classes)
+            ->selectRaw('users.class_name as class_name, count(distinct attendances.user_id) as total')
+            ->groupBy('users.class_name')->pluck('total', 'class_name');
+        $completedAttempts = Attempt::query()->where('status', 'completed');
 
         return [
-            'gradeXClasses' => $classes,
-            'statusLabels' => $statusLabels,
-            'sessionFilters' => $filters,
-            'attendanceSessions' => $attendanceSessions,
-            'classStudents' => $students,
-            'rosterCounts' => $students->whereNotNull('class_name')->countBy('class_name'),
+            'todayByClass' => collect($classes)->map(fn (string $class): array => [
+                'class' => $class,
+                'students' => (int) ($studentCounts[$class] ?? 0),
+                'present' => (int) ($todayCounts[$class] ?? 0),
+            ]),
+            'activeSessions' => AttendanceToken::query()->gradeX()->withStatus(AttendanceToken::STATUS_ACTIVE)
+                ->withCount('attendances')->orderBy('expires_at')->get(),
+            'quizSummary' => [
+                'attempts' => (clone $completedAttempts)->count(),
+                'average' => round((float) (clone $completedAttempts)->avg('score'), 1),
+                'passed' => (clone $completedAttempts)->where('score', '>=', config('students.passing_score', 70))->count(),
+                'passing_score' => (int) config('students.passing_score', 70),
+            ],
+            'latestAttempts' => Attempt::query()->where('status', 'completed')->with(['user:id,name,class_name', 'simulation:id,title'])
+                ->latest('submitted_at')->take(5)->get(),
         ];
-    }
-
-    private function validDate(mixed $value): ?string
-    {
-        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
-            return null;
-        }
-
-        try {
-            Carbon::createFromFormat('!Y-m-d', $value);
-        } catch (\Throwable) {
-            return null;
-        }
-
-        return $value;
     }
 }

@@ -5,11 +5,11 @@
 @section('content')
     <section class="page-heading">
         <div>
-            <span class="section-kicker">KELOLA KELAS · DATA SISWA</span>
+            <span class="section-kicker">KELOLA SISWA · IMPOR EXCEL</span>
             <h1>Impor data siswa</h1>
             <p>Tambahkan akun siswa dan tetapkan kelasnya dari file Excel atau CSV.</p>
         </div>
-        <a class="button button-quiet" href="{{ route('dashboard') }}#kelas-x">Kembali ke Kelola Kelas</a>
+        <a class="button button-quiet" href="{{ route('admin.students.index') }}">Kembali ke Kelola Siswa</a>
     </section>
 
     <div class="management-grid">

@@ -4,8 +4,8 @@
 
 @section('content')
     <section class="page-heading">
-        <div><span class="section-kicker">KELOLA KELAS · LAPORAN</span><h1>Laporan presensi</h1><p>Rekap kehadiran kelas X berdasarkan kelas dan tanggal sesi.</p></div>
-        <a class="button button-quiet" href="{{ route('dashboard') }}#kelas-x">Kembali ke Kelola Kelas</a>
+        <div><span class="section-kicker">KELOLA PRESENSI · LAPORAN</span><h1>Laporan presensi</h1><p>Rekap kehadiran kelas X berdasarkan kelas dan tanggal sesi.</p></div>
+        <a class="button button-quiet" href="{{ route('admin.attendance.index') }}">Kembali ke Kelola Presensi</a>
     </section>
 
     <form method="GET" action="{{ route('admin.attendance-report') }}" class="form-panel form-stack">
@@ -58,7 +58,10 @@
         <section class="content-section">
             <div class="section-heading">
                 <div><span class="section-kicker">KELAS {{ $className }} · {{ $dateFrom->format('d M Y') }}@if (! $dateFrom->isSameDay($dateTo)) – {{ $dateTo->format('d M Y') }}@endif</span><h2>Rekap siswa</h2></div>
-                <span class="section-count">{{ $sessions->count() }} SESI · {{ $roster->count() }} SISWA</span>
+                <div class="button-group">
+                    <span class="section-count">{{ $sessions->count() }} SESI · {{ $roster->count() }} SISWA</span>
+                    <a class="button button-quiet" href="{{ route('admin.attendance-report.download', array_filter(['class_name' => $className, 'date_from' => $dateFrom->format('Y-m-d'), 'date_to' => $dateTo->format('Y-m-d'), 'session_id' => $selectedSessionId, 'attendance_status' => $attendanceStatus])) }}">Unduh CSV</a>
+                </div>
             </div>
             @forelse ($studentSummary as $row)
                 <article class="session-row">
@@ -66,7 +69,7 @@
                     <span class="{{ $sessions->isNotEmpty() && $row['attended'] === $sessions->count() ? 'status-badge' : 'draft-badge' }}">Hadir {{ $row['attended'] }}/{{ $sessions->count() }} sesi</span>
                 </article>
             @empty
-                <div class="empty-state"><strong>Belum ada siswa di kelas {{ $className }}.</strong><span>Atur kelas siswa dari halaman Kelola Kelas agar roster terisi.</span></div>
+                <div class="empty-state"><strong>Belum ada siswa di kelas {{ $className }}.</strong><span>Atur kelas siswa dari menu Kelola Kelas agar roster terisi.</span></div>
             @endforelse
         </section>
 

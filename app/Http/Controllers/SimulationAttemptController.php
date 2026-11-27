@@ -17,13 +17,26 @@ class SimulationAttemptController extends Controller
         abort_unless($simulation->is_published && $simulation->questions()->exists(), 404);
 
         $simulation->load('subject')->loadCount('questions');
+        $usedAttempts = $simulation->attempts()->where('user_id', request()->user()->id)->count();
 
-        return view('simulations.show', compact('simulation'));
+        return view('simulations.show', compact('simulation', 'usedAttempts'));
     }
 
     public function begin(Request $request, Simulation $simulation): RedirectResponse
     {
         abort_unless($simulation->is_published && $simulation->questions()->exists(), 404);
+
+        $attempts = $request->user()->attempts()->where('simulation_id', $simulation->id);
+
+        // Lanjutkan percobaan yang belum dikirim agar tidak menghabiskan jatah percobaan.
+        $unfinished = (clone $attempts)->where('status', 'in_progress')->latest()->first();
+        if ($unfinished !== null) {
+            return redirect()->route('attempts.show', $unfinished);
+        }
+
+        if ($simulation->max_attempts !== null && (clone $attempts)->count() >= $simulation->max_attempts) {
+            return back()->withErrors(['attempt' => 'Batas percobaan kuis ini ('.$simulation->max_attempts.'x) sudah habis.']);
+        }
 
         $attempt = $request->user()->attempts()->create([
             'simulation_id' => $simulation->id,

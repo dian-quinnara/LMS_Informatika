@@ -4,7 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Ruang Belajar') | Ruang Belajar</title>
+    @php
+        $siteName = \App\Models\Setting::value('site_name') ?: 'Ruang Belajar';
+        $schoolName = \App\Models\Setting::value('school_name');
+    @endphp
+    <title>@yield('title', $siteName) | {{ $siteName }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
@@ -16,13 +20,31 @@
         <aside class="sidebar">
             <a class="brand" href="{{ route('dashboard') }}">
                 <span class="brand-mark">R</span>
-                <span>ruang<span class="brand-light">belajar</span></span>
+                @if ($siteName === 'Ruang Belajar')
+                    <span>ruang<span class="brand-light">belajar</span></span>
+                @else
+                    <span>{{ $siteName }}</span>
+                @endif
             </a>
             <p class="nav-label">MENU UTAMA</p>
             <nav class="primary-nav" aria-label="Navigasi utama">
                 @if (auth()->user()->role === 'admin')
-                    <a class="nav-link {{ request()->routeIs('dashboard', 'admin.attendance-sessions.*', 'admin.attendance-report', 'admin.students.*') ? 'active' : '' }}" href="{{ route('dashboard') }}"><span class="nav-symbol">01</span> Kelola Kelas</a>
-                    <a class="nav-link {{ request()->routeIs('admin.*') && ! request()->routeIs('admin.attendance-sessions.*', 'admin.attendance-report', 'admin.students.*') ? 'active' : '' }}" href="{{ route('admin.manage') }}"><span class="nav-symbol">02</span> Kelola Pembelajaran</a>
+                    @php
+                        $adminMenu = [
+                            ['Dashboard Admin', 'dashboard', ['dashboard']],
+                            ['Kelola Siswa', 'admin.students.index', ['admin.students.*', 'admin.student-classes.*']],
+                            ['Kelola Kelas', 'admin.classes.index', ['admin.classes.*']],
+                            ['Kelola Presensi', 'admin.attendance.index', ['admin.attendance.*', 'admin.attendance-sessions.*', 'admin.attendance-report*', 'admin.attendance-tokens.*']],
+                            ['Kelola Materi & Simulasi', 'admin.content.index', ['admin.content.*', 'admin.manage', 'admin.subjects.*', 'admin.materials.*', 'admin.simulations.*']],
+                            ['Kelola Soal & Kuis', 'admin.quizzes.index', ['admin.quizzes.*', 'admin.question-bank.*', 'admin.questions.*']],
+                            ['Hasil & Analisis Belajar', 'admin.results.index', ['admin.results.*']],
+                            ['Pengumuman', 'admin.announcements.index', ['admin.announcements.*']],
+                            ['Pengaturan Sistem', 'admin.settings.index', ['admin.settings.*']],
+                        ];
+                    @endphp
+                    @foreach ($adminMenu as [$menuLabel, $menuRoute, $menuPatterns])
+                        <a class="nav-link {{ request()->routeIs(...$menuPatterns) ? 'active' : '' }}" href="{{ route($menuRoute) }}"><span class="nav-symbol">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span> {{ $menuLabel }}</a>
+                    @endforeach
                 @else
                     <a class="nav-link {{ request()->routeIs('dashboard') && request('section', 'attendance') === 'attendance' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'attendance']) }}"><span class="nav-symbol">01</span> Presensi siswa</a>
                     <a class="nav-link {{ request()->routeIs('dashboard') && request('section') === 'materials' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'materials']) }}"><span class="nav-symbol">02</span> Materi belajar Informatika</a>
@@ -44,7 +66,7 @@
     <main class="main-content">
         @auth
             <header class="topbar">
-                <div><span class="eyebrow">PORTAL PEMBELAJARAN</span><span class="topbar-date">{{ now()->locale('id')->translatedFormat('l, d F Y') }}</span></div>
+                <div><span class="eyebrow">{{ $schoolName !== '' ? mb_strtoupper($schoolName) : 'PORTAL PEMBELAJARAN' }}</span><span class="topbar-date">{{ now()->locale('id')->translatedFormat('l, d F Y') }}</span></div>
                 <span class="role-pill">{{ auth()->user()->role === 'admin' ? 'ADMIN' : 'SISWA' }}</span>
             </header>
         @endauth

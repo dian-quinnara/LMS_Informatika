@@ -10,6 +10,15 @@
     <article class="reading-panel">
         <span class="section-kicker">MATERI BELAJAR</span>
         <div class="reading-content">{{ $material->content ?: 'Belum ada isi materi yang ditambahkan.' }}</div>
+        @if ($material->attachment_path)
+            @php($attachmentUrl = route('materials.attachment', $material))
+            @if (str_starts_with((string) $material->attachment_mime, 'image/'))
+                <img src="{{ $attachmentUrl }}" alt="{{ $material->title }}" style="max-width: 100%; height: auto;">
+            @elseif (str_starts_with((string) $material->attachment_mime, 'video/'))
+                <video src="{{ $attachmentUrl }}" controls preload="metadata" style="max-width: 100%;"></video>
+            @endif
+            <a class="button button-quiet" href="{{ $attachmentUrl }}" target="_blank" rel="noopener">Buka lampiran: {{ $material->attachment_name }}</a>
+        @endif
         @if ($material->resource_url)
             <a class="button button-primary" href="{{ $material->resource_url }}" target="_blank" rel="noopener noreferrer">Buka sumber tambahan <span aria-hidden="true">&#8599;</span></a>
         @endif

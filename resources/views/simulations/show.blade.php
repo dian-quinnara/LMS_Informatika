@@ -10,6 +10,7 @@
     <section class="simulation-detail">
         <div class="detail-fact"><span>JUMLAH SOAL</span><strong>{{ $simulation->questions_count }}</strong></div>
         <div class="detail-fact"><span>BATAS WAKTU</span><strong>{{ $simulation->duration_minutes }} menit</strong></div>
+        @if ($simulation->max_attempts)<div class="detail-fact"><span>PERCOBAAN</span><strong>{{ $usedAttempts }}/{{ $simulation->max_attempts }}</strong></div>@endif
         <div class="detail-action"><p>Jawaban akan dinilai otomatis setelah dikirim.</p><form method="POST" action="{{ route('simulations.begin', $simulation) }}">@csrf<button class="button button-primary" type="submit">Mulai simulasi <span aria-hidden="true">&#8594;</span></button></form></div>
     </section>
 @endsection

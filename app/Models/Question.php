@@ -13,7 +13,7 @@ class Question extends Model
     /** @use HasFactory<QuestionFactory> */
     use HasFactory;
 
-    protected $fillable = ['simulation_id', 'prompt', 'choices', 'correct_answer', 'points', 'position'];
+    protected $fillable = ['simulation_id', 'bank_question_id', 'category', 'prompt', 'choices', 'correct_answer', 'explanation', 'points', 'position'];
 
     protected $hidden = ['correct_answer'];
 
@@ -25,6 +25,11 @@ class Question extends Model
     public function simulation(): BelongsTo
     {
         return $this->belongsTo(Simulation::class);
+    }
+
+    public function bankQuestion(): BelongsTo
+    {
+        return $this->belongsTo(BankQuestion::class);
     }
 
     public function answers(): HasMany

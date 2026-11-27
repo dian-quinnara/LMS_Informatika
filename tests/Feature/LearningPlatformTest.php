@@ -246,7 +246,12 @@ class LearningPlatformTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Selamat datang, '.$admin->name)
-            ->assertSee('Kelola konten');
+            ->assertSee('DASHBOARD ADMIN')
+            ->assertSee('JUMLAH KELAS')
+            ->assertSee('PRESENSI HARI INI')
+            ->assertSee('SESI AKTIF')
+            ->assertSee('MATERI TERSEDIA')
+            ->assertSee('RATA-RATA KUIS');
 
         $this->get(route('admin.manage'))
             ->assertOk()

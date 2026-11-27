@@ -16,4 +16,16 @@ return [
 
     'default_password' => env('STUDENT_DEFAULT_PASSWORD'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Batas Nilai (KKM)
+    |--------------------------------------------------------------------------
+    |
+    | Nilai kuis minimum yang dianggap tuntas. Siswa dengan rata-rata nilai di
+    | bawah batas ini muncul di daftar "butuh pendampingan belajar".
+    |
+    */
+
+    'passing_score' => (int) env('STUDENT_PASSING_SCORE', 70),
+
 ];

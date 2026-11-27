@@ -1,5 +1,13 @@
 <?php
 
+use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\AttendanceManagementController;
+use App\Http\Controllers\Admin\ClassManagementController;
+use App\Http\Controllers\Admin\ContentManagementController;
+use App\Http\Controllers\Admin\LearningResultsController;
+use App\Http\Controllers\Admin\QuizManagementController;
+use App\Http\Controllers\Admin\StudentManagementController;
+use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceTokenController;
 use App\Http\Controllers\AuthController;
@@ -45,6 +53,59 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/students/import', [StudentImportController::class, 'store'])->name('students.import.store');
         Route::delete('/students/import', [StudentImportController::class, 'destroy'])->name('students.import.destroy');
         Route::post('/students/initial-passwords', [StudentImportController::class, 'resetPasswords'])->middleware('throttle:10,1')->name('students.initial-passwords.reset');
+
+        // 2. Kelola Siswa
+        Route::get('/students', [StudentManagementController::class, 'index'])->name('students.index');
+        Route::get('/students/create', [StudentManagementController::class, 'create'])->name('students.create');
+        Route::post('/students', [StudentManagementController::class, 'store'])->name('students.store');
+        Route::get('/students/{student}/edit', [StudentManagementController::class, 'edit'])->whereNumber('student')->name('students.edit');
+        Route::put('/students/{student}', [StudentManagementController::class, 'update'])->whereNumber('student')->name('students.update');
+        Route::patch('/students/{student}/status', [StudentManagementController::class, 'toggleActive'])->whereNumber('student')->name('students.status');
+        Route::post('/students/{student}/password', [StudentManagementController::class, 'resetPassword'])->whereNumber('student')->middleware('throttle:10,1')->name('students.password');
+
+        // 3. Kelola Kelas
+        Route::get('/classes', [ClassManagementController::class, 'index'])->name('classes.index');
+        Route::get('/classes/{className}', [ClassManagementController::class, 'show'])->name('classes.show');
+        Route::patch('/classes/move', [ClassManagementController::class, 'move'])->name('classes.move');
+
+        // 4. Kelola Presensi
+        Route::get('/attendance', [AttendanceManagementController::class, 'index'])->name('attendance.index');
+        Route::get('/attendance-report/download', [AttendanceTokenController::class, 'downloadReport'])->name('attendance-report.download');
+
+        // 5. Kelola Materi & Simulasi
+        Route::get('/content', [ContentManagementController::class, 'index'])->name('content.index');
+        Route::get('/content/materials/{material}/edit', [ContentManagementController::class, 'editMaterial'])->name('content.materials.edit');
+        Route::post('/content/materials', [ContentManagementController::class, 'storeMaterial'])->name('content.materials.store');
+        Route::put('/content/materials/{material}', [ContentManagementController::class, 'updateMaterial'])->name('content.materials.update');
+        Route::patch('/content/materials/{material}/publication', [ContentManagementController::class, 'togglePublication'])->name('content.materials.publication');
+        Route::get('/content/materials/{material}/attachment', [ContentManagementController::class, 'attachment'])->name('content.materials.attachment');
+        Route::get('/content/simulations/{simulation}/edit', [ContentManagementController::class, 'editSimulation'])->name('content.simulations.edit');
+        Route::put('/content/simulations/{simulation}', [ContentManagementController::class, 'updateSimulation'])->name('content.simulations.update');
+
+        // 6. Kelola Soal & Kuis
+        Route::get('/quizzes', [QuizManagementController::class, 'index'])->name('quizzes.index');
+        Route::post('/question-bank', [QuizManagementController::class, 'storeQuestion'])->name('question-bank.store');
+        Route::get('/question-bank/{bankQuestion}/edit', [QuizManagementController::class, 'editQuestion'])->name('question-bank.edit');
+        Route::put('/question-bank/{bankQuestion}', [QuizManagementController::class, 'updateQuestion'])->name('question-bank.update');
+        Route::delete('/question-bank/{bankQuestion}', [QuizManagementController::class, 'destroyQuestion'])->name('question-bank.destroy');
+        Route::post('/quizzes', [QuizManagementController::class, 'storeQuiz'])->name('quizzes.store');
+        Route::put('/quizzes/{simulation}', [QuizManagementController::class, 'updateQuiz'])->name('quizzes.update');
+
+        // 7. Hasil & Analisis Belajar
+        Route::get('/results', [LearningResultsController::class, 'index'])->name('results.index');
+
+        // 8. Pengumuman
+        Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::get('/announcements/{announcement}/edit', [AnnouncementController::class, 'edit'])->name('announcements.edit');
+        Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+        Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+
+        // 9. Pengaturan Sistem
+        Route::get('/settings', [SystemSettingsController::class, 'index'])->name('settings.index');
+        Route::put('/settings/identity', [SystemSettingsController::class, 'updateIdentity'])->name('settings.identity');
+        Route::put('/settings/profile', [SystemSettingsController::class, 'updateProfile'])->name('settings.profile');
+        Route::get('/settings/backup', [SystemSettingsController::class, 'backup'])->middleware('throttle:5,1')->name('settings.backup');
     });
 
     Route::middleware('role:student')->group(function (): void {
@@ -62,6 +123,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/materi/sorting', [MaterialController::class, 'sorting'])->name('materi.sorting');
         Route::get('/materi/struktur-data', [MaterialController::class, 'strukturData'])->name('materi.struktur-data');
         Route::get('/materials/{material}', [MaterialController::class, 'show'])->name('materials.show');
+        Route::get('/materials/{material}/attachment', [MaterialController::class, 'attachment'])->name('materials.attachment');
         Route::get('/simulations/{simulation}', [SimulationAttemptController::class, 'showSimulation'])->name('simulations.show');
         Route::post('/simulations/{simulation}/attempts', [SimulationAttemptController::class, 'begin'])->name('simulations.begin');
         Route::get('/attempts/{attempt}', [SimulationAttemptController::class, 'showAttempt'])->name('attempts.show');

@@ -5,11 +5,11 @@
 @section('content')
     <section class="page-heading">
         <div>
-            <span class="section-kicker">KELOLA KELAS · {{ $session->class_name }}</span>
+            <span class="section-kicker">KELOLA PRESENSI · {{ $session->class_name }}</span>
             <h1>{{ $session->title ?: 'Sesi presensi '.$session->class_name }}</h1>
             <p>{{ $session->starts_at->locale('id')->translatedFormat('l, d F Y, H:i') }} – {{ $session->expires_at->format('d M Y, H:i') }} · {{ config('app.timezone') }}</p>
         </div>
-        <a class="button button-quiet" href="{{ route('dashboard') }}#kelas-x">Kembali ke Kelola Kelas</a>
+        <a class="button button-quiet" href="{{ route('admin.attendance.index') }}">Kembali ke Kelola Presensi</a>
     </section>
 
     <section class="token-reveal">
@@ -50,7 +50,7 @@
         @empty
             <div class="empty-state">
                 @if ($roster->isEmpty())
-                    <strong>Belum ada siswa di kelas {{ $session->class_name }}.</strong><span>Atur kelas siswa dari halaman Kelola Kelas.</span>
+                    <strong>Belum ada siswa di kelas {{ $session->class_name }}.</strong><span>Atur kelas siswa dari menu Kelola Kelas.</span>
                 @else
                     <strong>Semua siswa sudah presensi.</strong><span>Seluruh siswa kelas {{ $session->class_name }} tercatat hadir.</span>
                 @endif

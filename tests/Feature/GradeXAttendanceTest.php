@@ -35,7 +35,7 @@ class GradeXAttendanceTest extends TestCase
             'title' => $title,
             'starts_at' => $startsAt->format('Y-m-d\TH:i'),
             'expires_at' => $expiresAt->format('Y-m-d\TH:i'),
-        ])->assertRedirect(route('dashboard'))->assertSessionHas('attendance_session');
+        ])->assertRedirect(route('admin.attendance.index'))->assertSessionHas('attendance_session');
 
         $flash = session('attendance_session');
         auth()->logout();
@@ -57,7 +57,7 @@ class GradeXAttendanceTest extends TestCase
         $this->assertSame(AttendanceToken::STATUS_SCHEDULED, $session->statusKey());
 
         $this->actingAs($this->admin())
-            ->get(route('dashboard'))
+            ->get(route('admin.attendance.index'))
             ->assertOk()
             ->assertSee('Buat sesi presensi')
             ->assertSee('XE3 · Pertemuan 1')
@@ -252,7 +252,7 @@ class GradeXAttendanceTest extends TestCase
         $this->assertNull($otherAdmin->fresh()->class_name);
     }
 
-    public function test_dashboard_filters_sessions_by_class_status_and_date(): void
+    public function test_attendance_page_filters_sessions_by_class_status_and_date(): void
     {
         $this->travelTo(Carbon::parse('2026-11-12 10:00'));
         $this->createSession('XE1', Carbon::parse('2026-11-10 07:00'), Carbon::parse('2026-11-10 08:00'), 'Lampau XE1');
@@ -260,17 +260,17 @@ class GradeXAttendanceTest extends TestCase
         $this->createSession('XE2', Carbon::parse('2026-11-13 07:00'), Carbon::parse('2026-11-13 08:00'), 'Besok XE2');
         $this->actingAs($this->admin());
 
-        $this->get(route('dashboard', ['class' => 'XE1']))
+        $this->get(route('admin.attendance.index', ['class' => 'XE1']))
             ->assertOk()->assertSee('Lampau XE1')->assertSee('Aktif XE1')->assertDontSee('Besok XE2');
-        $this->get(route('dashboard', ['status' => 'active']))
+        $this->get(route('admin.attendance.index', ['status' => 'active']))
             ->assertOk()->assertSee('Aktif XE1')->assertDontSee('Lampau XE1')->assertDontSee('Besok XE2');
-        $this->get(route('dashboard', ['status' => 'scheduled']))
+        $this->get(route('admin.attendance.index', ['status' => 'scheduled']))
             ->assertOk()->assertSee('Besok XE2')->assertDontSee('Aktif XE1');
-        $this->get(route('dashboard', ['status' => 'completed']))
+        $this->get(route('admin.attendance.index', ['status' => 'completed']))
             ->assertOk()->assertSee('Lampau XE1')->assertDontSee('Aktif XE1');
-        $this->get(route('dashboard', ['date_from' => '2026-11-12', 'date_to' => '2026-11-12']))
+        $this->get(route('admin.attendance.index', ['date_from' => '2026-11-12', 'date_to' => '2026-11-12']))
             ->assertOk()->assertSee('Aktif XE1')->assertDontSee('Lampau XE1')->assertDontSee('Besok XE2');
-        $this->get(route('dashboard', ['class' => "XE1' OR 1=1", 'date_from' => 'bukan-tanggal']))
+        $this->get(route('admin.attendance.index', ['class' => "XE1' OR 1=1", 'date_from' => 'bukan-tanggal']))
             ->assertOk()->assertSee('Besok XE2');
     }
 

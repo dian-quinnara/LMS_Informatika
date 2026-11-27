@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Admin\ContentManagementController;
 use App\Models\Material;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MaterialController extends Controller
 {
@@ -45,9 +47,17 @@ class MaterialController extends Controller
 
     public function show(Material $material): View
     {
+        abort_unless($material->is_published, 404);
         $material->load('subject');
 
         return view('materials.show', compact('material'));
+    }
+
+    public function attachment(Material $material): StreamedResponse
+    {
+        abort_unless($material->is_published, 404);
+
+        return ContentManagementController::streamAttachment($material);
     }
 
     private function showTopic(string $slug): View
@@ -60,6 +70,7 @@ class MaterialController extends Controller
         $material = Material::query()
             ->with('subject')
             ->where('slug', $slug)
+            ->where('is_published', true)
             ->whereHas('subject', fn ($query) => $query->where('code', 'IF-SEARCHING'))
             ->firstOrFail();
         $sections = json_decode($material->content, true);
