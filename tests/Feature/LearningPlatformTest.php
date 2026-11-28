@@ -114,7 +114,7 @@ class LearningPlatformTest extends TestCase
         ]);
 
         $this->actingAs($student)
-            ->get(route('dashboard'))
+            ->get(route('student.attendance'))
             ->assertOk()
             ->assertSee('Presensi siswa')
             ->assertSee('Masukkan token kelas')
@@ -129,34 +129,39 @@ class LearningPlatformTest extends TestCase
         $simulation = Simulation::factory()->create(['title' => 'Logika Komputasi']);
         Question::factory()->for($simulation)->create();
 
-        $this->actingAs($student)
-            ->get(route('dashboard', ['section' => 'materials']))
+        // Tautan lama ?section=... diarahkan ke menu siswa yang baru.
+        $this->actingAs($student)->get(route('dashboard', ['section' => 'materials']))->assertRedirect(route('materi.index'));
+        $this->get(route('dashboard', ['section' => 'simulations']))->assertRedirect(route('student.practice'));
+        $this->get(route('dashboard', ['section' => 'attendance']))->assertRedirect(route('student.attendance'));
+
+        $this->get(route('materi.index'))
             ->assertOk()
             ->assertSee('Materi belajar Informatika')
-            ->assertSee('MATERI 01')
-            ->assertSee('SEARCHING')
+            ->assertSeeInOrder(['MATERI 01', 'COMPUTATIONAL THINKING', 'MATERI 02', 'SEARCHING', 'MATERI 03', 'SORTING', 'MATERI 04', 'PSEUDOCODE', 'MATERI 05', 'STRUKTUR DATA'])
             ->assertSee('Pelajari algoritma pencarian data, mulai dari Sequential Search hingga Binary Search.')
-            ->assertSee('MATERI 02')
-            ->assertSee('SORTING')
             ->assertSee('Pelajari berbagai algoritma pengurutan data, mulai dari Bubble Sort, Selection Sort, hingga Insertion Sort.')
-            ->assertSee('MATERI 03')
-            ->assertSee('STRUKTUR DATA')
             ->assertSee('Pelajari konsep struktur data Stack dan Queue serta penerapannya dalam pemrograman.')
             ->assertSee('Mulai Belajar')
+            ->assertSee(route('materi.computational-thinking'), false)
             ->assertSee(route('materi.searching'), false)
             ->assertSee(route('materi.sorting'), false)
+            ->assertSee(route('materi.pseudocode'), false)
             ->assertSee(route('materi.struktur-data'), false)
+            ->assertSee(route('materi.searching.simulator'), false)
+            ->assertSee(route('materi.simulation', 'sorting'), false)
             ->assertDontSee('Masukkan token kelas')
             ->assertDontSee('Dasar Algoritma')
             ->assertDontSee('Logika Komputasi');
 
-        $this->get(route('dashboard', ['section' => 'simulations']))
+        $this->get(route('student.practice'))
             ->assertOk()
             ->assertSee('Logika Komputasi')
+            ->assertSee('Latihan soal LOTS')
+            ->assertSee('Latihan Pseudocode')
             ->assertDontSee('Masukkan token kelas')
             ->assertDontSee('Dasar Algoritma');
 
-        $this->get(route('dashboard', ['section' => 'attendance']))
+        $this->get(route('student.attendance'))
             ->assertOk()
             ->assertSee('Masukkan token kelas')
             ->assertDontSee('Dasar Algoritma')
@@ -169,7 +174,7 @@ class LearningPlatformTest extends TestCase
 
         $this->actingAs($student)
             ->get(route('materi.index'))
-            ->assertRedirect(route('dashboard', ['section' => 'materials']));
+            ->assertOk();
 
         $this->get(route('materi.searching'))
             ->assertOk()
@@ -187,7 +192,8 @@ class LearningPlatformTest extends TestCase
             ], false)
             ->assertSee(route('materi.searching.quiz'), false)
             ->assertSee(route('materi.searching.hots-quiz'), false)
-            ->assertSee('href="'.route('dashboard', ['section' => 'simulations']).'"', false)
+            ->assertSee('href="'.route('materi.searching.simulator').'"', false)
+            ->assertSee(route('materi.searching.analysis'), false)
             ->assertDontSee('Latihan LOTS')
             ->assertDontSee('Latihan HOTS')
             ->assertDontSee('Array terurut [3, 7, 11, 18, 25, 31, 42] dicari dengan Binary Search');

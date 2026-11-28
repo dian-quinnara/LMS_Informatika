@@ -19,6 +19,9 @@ use App\Http\Controllers\SearchingAnalysisController;
 use App\Http\Controllers\SearchingQuizController;
 use App\Http\Controllers\SimulationAttemptController;
 use App\Http\Controllers\StudentImportController;
+use App\Http\Controllers\StudentPortalController;
+use App\Http\Controllers\TopicPracticeController;
+use App\Support\LearningCatalog;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function (): void {
@@ -110,7 +113,19 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('role:student')->group(function (): void {
         Route::post('/attendances', [AttendanceController::class, 'store'])->middleware('throttle:10,1')->name('attendances.store');
-        Route::get('/materi', [MaterialController::class, 'index'])->name('materi.index');
+        // Menu siswa: Beranda (dashboard), Presensi, Materi & Simulasi, Latihan & Kuis, Progres, Pengumuman, Profil.
+        Route::get('/presensi', [StudentPortalController::class, 'attendance'])->name('student.attendance');
+        Route::get('/materi', [StudentPortalController::class, 'materials'])->name('materi.index');
+        Route::get('/latihan', [StudentPortalController::class, 'practice'])->name('student.practice');
+        Route::get('/progres', [StudentPortalController::class, 'progress'])->name('student.progress');
+        Route::get('/pengumuman', [StudentPortalController::class, 'announcements'])->name('student.announcements');
+        Route::get('/profil', [StudentPortalController::class, 'profile'])->name('student.profile');
+
+        Route::get('/materi/computational-thinking', [MaterialController::class, 'computationalThinking'])->name('materi.computational-thinking');
+        Route::get('/materi/pseudocode', [MaterialController::class, 'pseudocode'])->name('materi.pseudocode');
+        Route::get('/materi/{topic}/simulasi', [MaterialController::class, 'simulation'])->whereIn('topic', LearningCatalog::GENERIC_TOPICS)->name('materi.simulation');
+        Route::get('/materi/{topic}/latihan', [TopicPracticeController::class, 'show'])->whereIn('topic', LearningCatalog::GENERIC_TOPICS)->name('materi.practice');
+        Route::post('/materi/{topic}/latihan', [TopicPracticeController::class, 'submit'])->whereIn('topic', LearningCatalog::GENERIC_TOPICS)->name('materi.practice.submit');
         Route::get('/materi/searching', [MaterialController::class, 'searching'])->name('materi.searching');
         Route::get('/materi/searching/sequential-search', [MaterialController::class, 'sequentialSearch'])->name('materi.searching.sequential');
         Route::get('/materi/searching/binary-search', [MaterialController::class, 'binarySearch'])->name('materi.searching.binary');

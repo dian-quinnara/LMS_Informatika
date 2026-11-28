@@ -46,8 +46,20 @@
                         <a class="nav-link {{ request()->routeIs(...$menuPatterns) ? 'active' : '' }}" href="{{ route($menuRoute) }}"><span class="nav-symbol">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span> {{ $menuLabel }}</a>
                     @endforeach
                 @else
-                    <a class="nav-link {{ request()->routeIs('dashboard') && request('section', 'attendance') === 'attendance' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'attendance']) }}"><span class="nav-symbol">01</span> Presensi siswa</a>
-                    <a class="nav-link {{ request()->routeIs('dashboard') && request('section') === 'materials' ? 'active' : '' }}" href="{{ route('dashboard', ['section' => 'materials']) }}"><span class="nav-symbol">02</span> Materi belajar Informatika</a>
+                    @php
+                        $studentMenu = [
+                            ['Beranda', 'dashboard', ['dashboard']],
+                            ['Presensi', 'student.attendance', ['student.attendance']],
+                            ['Materi & Simulasi', 'materi.index', ['materi.index', 'materi.computational-thinking', 'materi.searching', 'materi.searching.sequential', 'materi.searching.binary', 'materi.searching.simulator', 'materi.sorting', 'materi.pseudocode', 'materi.struktur-data', 'materi.simulation', 'materials.*']],
+                            ['Latihan & Kuis', 'student.practice', ['student.practice', 'materi.practice*', 'materi.searching.quiz*', 'materi.searching.hots-quiz*', 'materi.searching.analysis', 'simulations.*', 'attempts.*']],
+                            ['Progres Belajar', 'student.progress', ['student.progress']],
+                            ['Pengumuman', 'student.announcements', ['student.announcements']],
+                            ['Profil Saya', 'student.profile', ['student.profile', 'password.edit']],
+                        ];
+                    @endphp
+                    @foreach ($studentMenu as [$menuLabel, $menuRoute, $menuPatterns])
+                        <a class="nav-link {{ request()->routeIs(...$menuPatterns) ? 'active' : '' }}" href="{{ route($menuRoute) }}"><span class="nav-symbol">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span> {{ $menuLabel }}</a>
+                    @endforeach
                 @endif
             </nav>
             <div class="sidebar-bottom">

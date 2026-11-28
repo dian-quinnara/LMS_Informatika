@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LearningActivity;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -85,6 +86,7 @@ class SearchingQuizController extends Controller
         $score = round(($correctCount / max(1, count($questions))) * 100);
 
         $this->rememberAttempt($quizKey, $storedAnswers, $score);
+        LearningActivity::record($request->user(), LearningActivity::TYPE_PRACTICE, 'searching.'.$quizKey, $this->quiz($quizKey)['label'], route(self::QUIZ_ROUTES[$quizKey]['show']), (int) $score);
 
         return view('materials.searching-quiz-result', [
             'quiz' => $this->quiz($quizKey),
@@ -92,6 +94,7 @@ class SearchingQuizController extends Controller
             'correctCount' => $correctCount,
             'score' => $score,
             'retryRoute' => self::QUIZ_ROUTES[$quizKey]['show'],
+            'feedback' => TopicPracticeController::feedbackFor((int) $score),
         ]);
     }
 

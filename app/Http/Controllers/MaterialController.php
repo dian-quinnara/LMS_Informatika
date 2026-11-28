@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Admin\ContentManagementController;
+use App\Models\LearningActivity;
 use App\Models\Material;
+use App\Support\LearningCatalog;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -12,37 +15,66 @@ class MaterialController extends Controller
 {
     public function index(): RedirectResponse
     {
-        return redirect()->route('dashboard', ['section' => 'materials']);
+        return redirect()->route('materi.index');
     }
 
-    public function searching(): View
+    public function computationalThinking(Request $request): View
     {
-        return $this->showTopic('searching');
+        return $this->showTopic($request, 'computational-thinking');
     }
 
-    public function sequentialSearch(): View
+    public function searching(Request $request): View
     {
-        return $this->showSearchingLesson('sequential-search');
+        return $this->showTopic($request, 'searching');
     }
 
-    public function binarySearch(): View
+    public function sequentialSearch(Request $request): View
     {
-        return $this->showSearchingLesson('binary-search');
+        return $this->showSearchingLesson($request, 'sequential-search', 'Sequential Search');
     }
 
-    public function searchingSimulator(): View
+    public function binarySearch(Request $request): View
     {
+        return $this->showSearchingLesson($request, 'binary-search', 'Binary Search');
+    }
+
+    public function searchingSimulator(Request $request): View
+    {
+        LearningActivity::record($request->user(), LearningActivity::TYPE_SIMULATION, 'searching', 'Simulasi Searching', route('materi.searching.simulator'));
+
         return view('simulations.searching-simulator');
     }
 
-    public function sorting(): View
+    public function sorting(Request $request): View
     {
-        return $this->showTopic('sorting');
+        return $this->showTopic($request, 'sorting');
     }
 
-    public function strukturData(): View
+    public function pseudocode(Request $request): View
     {
-        return $this->showTopic('struktur-data');
+        return $this->showTopic($request, 'pseudocode');
+    }
+
+    public function strukturData(Request $request): View
+    {
+        return $this->showTopic($request, 'struktur-data');
+    }
+
+    /**
+     * Simulasi interaktif topik generik (menyusun algoritma / visualisasi sorting).
+     */
+    public function simulation(Request $request, string $topic): View
+    {
+        $config = config("learning_topics.{$topic}");
+        abort_unless(is_array($config) && isset($config['simulation']), 404);
+
+        LearningActivity::record($request->user(), LearningActivity::TYPE_SIMULATION, $topic, $config['simulation']['label'], route('materi.simulation', $topic));
+
+        return view($config['simulation']['type'] === 'sorting' ? 'simulations.sorting-simulator' : 'simulations.ordering', [
+            'slug' => $topic,
+            'topic' => $config,
+            'simulation' => $config['simulation'],
+        ]);
     }
 
     public function show(Material $material): View
@@ -60,12 +92,19 @@ class MaterialController extends Controller
         return ContentManagementController::streamAttachment($material);
     }
 
-    private function showTopic(string $slug): View
+    private function showTopic(Request $request, string $slug): View
     {
-        return view('materials.topic', ['topic' => config("learning_topics.{$slug}")]);
+        $topic = config("learning_topics.{$slug}");
+        LearningActivity::record($request->user(), LearningActivity::TYPE_MATERIAL, $slug, 'Materi '.ucwords(strtolower($topic['title'])), route('materi.'.$slug));
+
+        return view('materials.topic', [
+            'slug' => $slug,
+            'topic' => $topic,
+            'entry' => LearningCatalog::topics()->get($slug),
+        ]);
     }
 
-    private function showSearchingLesson(string $slug): View
+    private function showSearchingLesson(Request $request, string $slug, string $label): View
     {
         $material = Material::query()
             ->with('subject')
@@ -76,6 +115,8 @@ class MaterialController extends Controller
         $sections = json_decode($material->content, true);
 
         abort_unless(is_array($sections), 500);
+
+        LearningActivity::record($request->user(), LearningActivity::TYPE_MATERIAL, 'searching/'.$slug, $label, $request->url());
 
         return view('materials.lesson', compact('material', 'sections'));
     }

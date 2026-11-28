@@ -1,0 +1,1 @@
+<article class="list-row"><div><strong>{{ $announcement->title }}</strong><small>{{ $announcement->created_at->format('d M Y') }}{{ $announcement->class_name ? ' · Kelas '.$announcement->class_name : ' · Semua kelas' }}</small><p>{!! nl2br(e($announcement->body)) !!}</p></div></article>

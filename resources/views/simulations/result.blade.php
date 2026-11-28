@@ -5,7 +5,7 @@
 @section('content')
     <section class="page-heading">
         <div><span class="section-kicker">HASIL SIMULASI · {{ $attempt->simulation->subject->name }}</span><h1>{{ $attempt->simulation->title }}</h1><p>Dikerjakan {{ $attempt->submitted_at?->format('d M Y, H:i') }}</p></div>
-        <a class="button button-quiet" href="{{ route('dashboard') }}">Kembali ke ringkasan</a>
+        <a class="button button-quiet" href="{{ route('student.practice') }}">Kembali ke Latihan &amp; Kuis</a>
     </section>
     <section class="result-banner"><span>NILAI AKHIR</span><strong>{{ number_format((float) $attempt->score, 0) }}<small>%</small></strong><p>{{ $attempt->answers->where('is_correct', true)->count() }} dari {{ $attempt->answers->count() }} jawaban benar</p></section>
     <section class="content-section">
