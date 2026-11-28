@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use App\Models\Simulation;
 use App\Models\Subject;
+use App\Support\StoredAttachment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -121,18 +122,7 @@ class ContentManagementController extends Controller
      */
     public static function streamAttachment(Material $material): StreamedResponse
     {
-        abort_if($material->attachment_path === null || ! Storage::disk('local')->exists($material->attachment_path), 404);
-
-        $inline = str_starts_with((string) $material->attachment_mime, 'image/')
-            || str_starts_with((string) $material->attachment_mime, 'video/')
-            || $material->attachment_mime === 'application/pdf';
-
-        return Storage::disk('local')->response(
-            $material->attachment_path,
-            $material->attachment_name,
-            ['Content-Type' => $material->attachment_mime ?? 'application/octet-stream', 'X-Content-Type-Options' => 'nosniff'],
-            $inline ? 'inline' : 'attachment',
-        );
+        return StoredAttachment::stream($material->attachment_path, $material->attachment_name, $material->attachment_mime);
     }
 
     /**

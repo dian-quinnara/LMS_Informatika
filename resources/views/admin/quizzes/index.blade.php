@@ -17,12 +17,11 @@
 
     <div class="management-grid">
         <section class="form-panel">
-            <div class="panel-heading"><span class="panel-index panel-index-blue">01</span><div><span class="section-kicker">BANK SOAL</span><h2>Tambah soal</h2></div></div>
-            <form method="POST" action="{{ route('admin.question-bank.store') }}" class="form-stack" data-single-submit>
+            <div class="panel-heading"><span class="panel-index panel-index-blue">01</span><div><span class="section-kicker">BANK SOAL</span><h2>Tambah soal &amp; topik</h2></div></div>
+            <form method="POST" action="{{ route('admin.question-bank.store') }}" class="form-stack" enctype="multipart/form-data" data-single-submit>
                 @csrf
                 @include('admin.quizzes.partials.question-fields', ['question' => null])
-                <button class="button button-primary" type="submit" @disabled($materials->isEmpty())>Simpan ke bank soal</button>
-                @if ($materials->isEmpty())<small class="optional">Tambahkan materi terlebih dahulu di menu Kelola Materi &amp; Simulasi.</small>@endif
+                <button class="button button-primary" type="submit">Simpan ke bank soal</button>
             </form>
         </section>
 
@@ -42,7 +41,7 @@
                 </div>
                 <span class="field-label">Pilih soal ({{ $questions->count() }} tersedia{{ $filters['material'] || $filters['category'] ? ' sesuai filter' : '' }})</span>
                 @forelse ($questions as $question)
-                    <label class="check-line"><input type="checkbox" name="question_ids[]" value="{{ $question->id }}" @checked(in_array($question->id, old('question_ids', [])))> [{{ $question->category }}] {{ \Illuminate\Support\Str::limit($question->prompt, 80) }} · {{ $question->material?->title ?? 'tanpa materi' }}</label>
+                    <label class="check-line"><input type="checkbox" name="question_ids[]" value="{{ $question->id }}" @checked(in_array($question->id, old('question_ids', [])))> [{{ $question->category }}] {{ \Illuminate\Support\Str::limit($question->prompt, 80) }} · {{ $question->materialLabel() }}@if ($question->attachment_path) · ada file @endif</label>
                 @empty
                     <small class="optional">Bank soal masih kosong.</small>
                 @endforelse
@@ -60,8 +59,12 @@
                     <label class="field-label" for="filter-material">Materi</label>
                     <select id="filter-material" name="material">
                         <option value="">Semua materi</option>
-                        @foreach ($materials as $material)
-                            <option value="{{ $material->id }}" @selected($filters['material'] === $material->id)>{{ $material->subject?->name }} · {{ $material->title }}</option>
+                        @foreach ($materialOptions as $group => $options)
+                            <optgroup label="{{ $group }}">
+                                @foreach ($options as $value => $label)
+                                    <option value="{{ $value }}" @selected($filters['material'] === $value)>{{ $label }}</option>
+                                @endforeach
+                            </optgroup>
                         @endforeach
                     </select>
                 </div>
@@ -80,13 +83,13 @@
                 <a class="button button-quiet" href="{{ route('admin.quizzes.index') }}">Atur ulang</a>
             </div>
         </form>
-        @forelse ($questions->groupBy(fn ($question) => $question->material?->title ?? 'Tanpa materi') as $materialTitle => $group)
+        @forelse ($questions->groupBy(fn ($question) => $question->materialLabel()) as $materialTitle => $group)
             <div class="section-heading"><div><span class="section-kicker">MATERI</span><h2>{{ $materialTitle }}</h2></div><span class="section-count">{{ $group->count() }} SOAL</span></div>
             @foreach ($group as $question)
                 <article class="session-row">
                     <div>
                         <strong>{{ \Illuminate\Support\Str::limit($question->prompt, 140) }}</strong>
-                        <small>Kunci {{ $question->correct_answer }} · {{ $question->points }} poin · dipakai di {{ $question->quiz_questions_count }} kuis{{ $question->explanation ? ' · ada pembahasan' : ' · belum ada pembahasan' }}</small>
+                        <small>Kunci {{ $question->correct_answer }} · {{ $question->points }} poin · dipakai di {{ $question->quiz_questions_count }} kuis{{ $question->explanation ? ' · ada pembahasan' : ' · belum ada pembahasan' }}@if ($question->attachment_path) · file: <a class="text-link" href="{{ route('admin.question-bank.attachment', $question) }}" target="_blank" rel="noopener">{{ $question->attachment_name }}</a>@endif</small>
                     </div>
                     <span class="{{ $question->category === 'HOTS' ? 'active-badge' : 'status-badge' }}">{{ $question->category }}</span>
                     <a class="text-link" href="{{ route('admin.question-bank.edit', $question) }}">Edit <span aria-hidden="true">&#8594;</span></a>

@@ -117,9 +117,19 @@ class StudentPortalController extends Controller
 
     public function announcements(Request $request): View
     {
+        $user = $request->user();
+        $announcements = Announcement::query()->visibleTo($user->class_name)->latest()->get();
+        $unreadIds = Announcement::readsTableReady()
+            ? Announcement::query()->whereKey($announcements->modelKeys())->unreadBy($user)->pluck('id')->all()
+            : [];
+
+        // Membuka halaman ini berarti siswa sudah membaca semua pengumuman yang tampil.
+        Announcement::markReadFor($user, $announcements->whereIn('id', $unreadIds));
+
         return view('student.announcements', [
-            'user' => $request->user(),
-            'announcements' => Announcement::query()->visibleTo($request->user()->class_name)->latest()->get(),
+            'user' => $user,
+            'announcements' => $announcements,
+            'unreadIds' => $unreadIds,
         ]);
     }
 

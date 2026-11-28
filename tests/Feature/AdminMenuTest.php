@@ -265,12 +265,12 @@ class AdminMenuTest extends TestCase
 
         foreach (['LOTS' => 'Apa syarat binary search?', 'HOTS' => 'Analisis langkah binary search'] as $category => $prompt) {
             $this->post(route('admin.question-bank.store'), [
-                'material_id' => $material->id, 'category' => $category, 'prompt' => $prompt,
+                'material' => 'material:'.$material->id, 'category' => $category, 'prompt' => $prompt,
                 'choices' => ['A' => 'Data terurut', 'B' => 'Data acak', 'C' => 'Data kosong', 'D' => 'Data ganda'],
                 'correct_answer' => 'A', 'explanation' => 'Binary search butuh data terurut.', 'points' => 1,
             ])->assertSessionHasNoErrors();
         }
-        $this->post(route('admin.question-bank.store'), ['material_id' => $material->id, 'category' => 'MOTS', 'prompt' => 'x', 'choices' => ['A' => '1'], 'correct_answer' => 'E', 'points' => 1])
+        $this->post(route('admin.question-bank.store'), ['material' => 'material:'.$material->id, 'category' => 'MOTS', 'prompt' => 'x', 'choices' => ['A' => '1'], 'correct_answer' => 'E', 'points' => 1])
             ->assertSessionHasErrors(['category', 'choices', 'correct_answer']);
 
         $bank = BankQuestion::query()->orderBy('id')->get();
@@ -287,7 +287,7 @@ class AdminMenuTest extends TestCase
 
         // Mengubah bank soal tidak mengubah soal kuis yang sudah dibuat.
         $this->put(route('admin.question-bank.update', $bank->first()), [
-            'material_id' => $material->id, 'category' => 'LOTS', 'prompt' => 'Pertanyaan diganti',
+            'material' => 'material:'.$material->id, 'category' => 'LOTS', 'prompt' => 'Pertanyaan diganti',
             'choices' => ['A' => 'a', 'B' => 'b', 'C' => 'c', 'D' => 'd'], 'correct_answer' => 'B', 'points' => 2,
         ])->assertSessionHasNoErrors();
         $this->assertSame('Apa syarat binary search?', $quiz->questions()->first()->prompt);

@@ -10,7 +10,7 @@
 
     <section class="form-panel">
         <div class="panel-heading"><span class="panel-index panel-index-blue">01</span><div><span class="section-kicker">BANK SOAL</span><h2>Edit soal</h2></div></div>
-        <form method="POST" action="{{ route('admin.question-bank.update', $question) }}" class="form-stack">
+        <form method="POST" action="{{ route('admin.question-bank.update', $question) }}" class="form-stack" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             @include('admin.quizzes.partials.question-fields')

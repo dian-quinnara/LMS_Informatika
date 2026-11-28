@@ -47,6 +47,7 @@
                     @endforeach
                 @else
                     @php
+                        $unreadAnnouncements = \App\Models\Announcement::unreadCountFor(auth()->user());
                         $studentMenu = [
                             ['Beranda', 'dashboard', ['dashboard']],
                             ['Presensi', 'student.attendance', ['student.attendance']],
@@ -58,7 +59,7 @@
                         ];
                     @endphp
                     @foreach ($studentMenu as [$menuLabel, $menuRoute, $menuPatterns])
-                        <a class="nav-link {{ request()->routeIs(...$menuPatterns) ? 'active' : '' }}" href="{{ route($menuRoute) }}"><span class="nav-symbol">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span> {{ $menuLabel }}</a>
+                        <a class="nav-link {{ request()->routeIs(...$menuPatterns) ? 'active' : '' }}" href="{{ route($menuRoute) }}"><span class="nav-symbol">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span> {{ $menuLabel }}@if ($menuRoute === 'student.announcements' && $unreadAnnouncements > 0)<span class="unread-mark" title="{{ $unreadAnnouncements }} pengumuman belum dibaca" aria-label="{{ $unreadAnnouncements }} pengumuman belum dibaca">*</span>@endif</a>
                     @endforeach
                 @endif
             </nav>

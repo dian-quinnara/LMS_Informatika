@@ -12,6 +12,13 @@
         @foreach ($attempt->simulation->questions as $question)
             <fieldset class="question-panel">
                 <legend><span class="question-number">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>{{ $question->prompt }}</legend>
+                @if ($question->attachment_path)
+                    @if (\App\Support\StoredAttachment::isImage($question->attachment_mime))
+                        <img src="{{ route('questions.attachment', $question) }}" alt="Gambar soal {{ $loop->iteration }}" loading="lazy" style="max-width: 100%; height: auto; border-radius: 8px;">
+                    @else
+                        <a class="text-link" href="{{ route('questions.attachment', $question) }}" target="_blank" rel="noopener">Buka file soal: {{ $question->attachment_name }} <span aria-hidden="true">&#8594;</span></a>
+                    @endif
+                @endif
                 <div class="answer-options">
                     @foreach ($question->choices as $key => $choice)
                         <label class="answer-option"><input type="radio" name="answers[{{ $question->id }}]" value="{{ $key }}"><span class="answer-key">{{ $key }}</span><span>{{ $choice }}</span></label>

@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attempt;
+use App\Models\Question;
 use App\Models\Simulation;
+use App\Support\StoredAttachment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SimulationAttemptController extends Controller
 {
@@ -102,5 +105,15 @@ class SimulationAttemptController extends Controller
         });
 
         return redirect()->route('attempts.show', $attempt)->with('status', 'Jawaban tersimpan. Nilai Anda: '.number_format(($earnedPoints / $totalPoints) * 100, 1).'%');
+    }
+
+    /**
+     * Lampiran soal (PDF/Word/gambar) hanya untuk siswa yang sedang/pernah mengerjakan kuisnya.
+     */
+    public function questionAttachment(Request $request, Question $question): StreamedResponse
+    {
+        abort_unless($request->user()->attempts()->where('simulation_id', $question->simulation_id)->exists(), 404);
+
+        return StoredAttachment::stream($question->attachment_path, $question->attachment_name, $question->attachment_mime);
     }
 }

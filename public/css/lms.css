@@ -385,3 +385,5 @@ input:not([type=checkbox]):not([type=radio]):focus, textarea:focus, select:focus
     .result-panel { padding: 20px; }
     .result-panel strong { font-size: 20px; }
 }
+/* Penanda pengumuman belum dibaca siswa */
+.unread-mark { color: #f28c28; font-weight: 700; margin-left: 4px; }

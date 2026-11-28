@@ -91,6 +91,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/question-bank/{bankQuestion}/edit', [QuizManagementController::class, 'editQuestion'])->name('question-bank.edit');
         Route::put('/question-bank/{bankQuestion}', [QuizManagementController::class, 'updateQuestion'])->name('question-bank.update');
         Route::delete('/question-bank/{bankQuestion}', [QuizManagementController::class, 'destroyQuestion'])->name('question-bank.destroy');
+        Route::get('/question-bank/{bankQuestion}/attachment', [QuizManagementController::class, 'questionAttachment'])->name('question-bank.attachment');
         Route::post('/quizzes', [QuizManagementController::class, 'storeQuiz'])->name('quizzes.store');
         Route::put('/quizzes/{simulation}', [QuizManagementController::class, 'updateQuiz'])->name('quizzes.update');
 
@@ -143,5 +144,6 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/simulations/{simulation}/attempts', [SimulationAttemptController::class, 'begin'])->name('simulations.begin');
         Route::get('/attempts/{attempt}', [SimulationAttemptController::class, 'showAttempt'])->name('attempts.show');
         Route::post('/attempts/{attempt}', [SimulationAttemptController::class, 'submit'])->name('attempts.submit');
+        Route::get('/questions/{question}/attachment', [SimulationAttemptController::class, 'questionAttachment'])->name('questions.attachment');
     });
 });

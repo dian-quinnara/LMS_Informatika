@@ -13,7 +13,7 @@ class Question extends Model
     /** @use HasFactory<QuestionFactory> */
     use HasFactory;
 
-    protected $fillable = ['simulation_id', 'bank_question_id', 'category', 'prompt', 'choices', 'correct_answer', 'explanation', 'points', 'position'];
+    protected $fillable = ['simulation_id', 'bank_question_id', 'category', 'prompt', 'choices', 'correct_answer', 'explanation', 'points', 'position', 'attachment_path', 'attachment_name', 'attachment_mime'];
 
     protected $hidden = ['correct_answer'];
 

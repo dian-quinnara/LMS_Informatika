@@ -1,9 +1,13 @@
 @php($question ??= null)
-<label class="field-label" for="bank-material">Materi</label>
-<select id="bank-material" name="material_id" required>
-    <option value="">Pilih materi</option>
-    @foreach ($materials as $material)
-        <option value="{{ $material->id }}" @selected((int) old('material_id', $question?->material_id) === $material->id)>{{ $material->subject?->name }} · {{ $material->title }}</option>
+<label class="field-label" for="bank-material">Topik / materi</label>
+<select id="bank-material" name="material" required>
+    <option value="">Pilih materi yang ada</option>
+    @foreach ($materialOptions as $group => $options)
+        <optgroup label="{{ $group }}">
+            @foreach ($options as $value => $label)
+                <option value="{{ $value }}" @selected(old('material', $question?->materialKey()) === $value)>{{ $label }}</option>
+            @endforeach
+        </optgroup>
     @endforeach
 </select>
 <div class="form-inline">
@@ -22,6 +26,12 @@
 </div>
 <label class="field-label" for="bank-prompt">Pertanyaan</label>
 <textarea id="bank-prompt" name="prompt" rows="3" required placeholder="Tulis pertanyaan">{{ old('prompt', $question?->prompt) }}</textarea>
+<label class="field-label" for="bank-attachment">File soal: PDF, Word, atau gambar <span class="optional">OPSIONAL · MAKS. 10 MB</span></label>
+<input id="bank-attachment" name="attachment" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*">
+@if ($question?->attachment_path)
+    <small class="optional">File saat ini: <a class="text-link" href="{{ route('admin.question-bank.attachment', $question) }}" target="_blank" rel="noopener">{{ $question->attachment_name }}</a>. Unggah file baru untuk mengganti.</small>
+    <label class="check-line"><input type="checkbox" name="remove_attachment" value="1"> Hapus file soal</label>
+@endif
 <div class="choice-grid">
     @foreach ($choiceKeys as $choice)
         <div><label class="field-label" for="bank-choice-{{ strtolower($choice) }}">Pilihan {{ $choice }}</label><input id="bank-choice-{{ strtolower($choice) }}" name="choices[{{ $choice }}]" value="{{ old('choices.'.$choice, $question?->choices[$choice] ?? '') }}" maxlength="255" required></div>
